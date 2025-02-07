@@ -1,0 +1,109 @@
+/* 设置轮盘颜色 */
+.frame,
+.sticks {
+  fill: #fff;
+}
+
+.winIndicator {
+  fill: #fff;
+}
+
+.wheelMiddle {
+  fill: #fff;
+}
+
+.sector-1 {
+  fill: #fa8500;
+}
+
+.sector-2 {
+  fill: #f4e8c3;
+}
+
+.sector-3 {
+  fill: #fa8500;
+}
+
+.sector-4 {
+  fill: #f4e8c3;
+}
+
+.sector-5 {
+  fill: #fa8500;
+}
+
+.sector-6 {
+  fill: #f4e8c3;
+}
+
+.sector-7 {
+  fill: #fa8500;
+}
+
+.sector-8 {
+  fill: #f4e8c3;
+}
+
+.sector-9 {
+  fill: #fa8500;
+}
+
+.sector-10 {
+  fill: #f4e8c3;
+}
+
+.sector-11 {
+  fill: #fa8500;
+}
+
+.sector-12 {
+  fill: #f4e8c3;
+}
+
+/* 页面主体 */
+body {
+  text-align: center;
+  margin: auto;
+  background-color: #60c41d;
+  width: 80vw;
+  height: 90vh;
+}
+
+.slogan {
+  text-align: center;
+  margin: auto;
+  font-size: 100px;
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* 轮盘样式 */
+.luckywheel {
+  margin: 20px auto;
+  width: 45%;
+  height: 45%;
+}
+
+/* 按钮样式 */
+.btn,
+.btn:visited {
+  font-weight: 800;
+  margin: 10px;
+  height: 40px;
+  width: 140px;
+  box-shadow: 4px 4px 20px 0 #076810;
+  border-radius: 0;
+  border: 2px solid #000;
+  background-color: #fff;
+  color: #000;
+}
+
+.btn:hover,
+.btn:active {
+  color: #fff;
+  background-color: #000;
+  border: none;
+  text-decoration: none;
+  box-shadow: 4px 4px 5px 0 #076810;
+}
