@@ -8,8 +8,8 @@ $(document).ready(function () {
     lastRotation = 0,
     tolerance,
     deg,
-    $btnPlay = $("#btnPlay"),
-    $btnSlowMo = $("#btnSlowMo");
+    $btnPlay = $("#selectButton"),
+    $btnSlowMo = $("#menuButton");
 
   //  Random degree
   function getRandomInt(min, max) {
@@ -54,12 +54,12 @@ $(document).ready(function () {
     },
   });
   spinWheel.add("end");
-  //   Buttons
+  // Play animation
   $btnPlay.click(function () {
     indicator.timeScale(1).seek(0);
     spinWheel.timeScale(1).seek(0);
   });
-
+  //  Slow motion
   $btnSlowMo.click(function () {
     indicator.timeScale(0.2).seek(0.5);
     spinWheel.timeScale(0.2).seek(0.5);
