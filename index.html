@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>今天喝什麼？</title>
 
-    <!-- 引入样式文件 -->
-    <link rel="stylesheet" href="style.css" />
+    <!-- Include CSS files -->
+    <link rel="stylesheet" href="assets/css/style.css" />
 
-    <!-- 引入外部库 -->
+    <!-- Include Bootstrap CSS files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/snap-svg/0.5.1/snap.svg-min.js"></script>
   </head>
@@ -22,8 +22,9 @@
 
     <div class="container">
       <div class="row">
-        <div class="luckywheel">
-          <!--  ___________________________________ SVG wheel ____________________________________   -->
+        <!-- Lucky Wheel Div Zone -->
+        <div class="luckyWheel">
+          <!-- SVG Wheel -->
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 730 730">
             <g class="wheel">
               <circle class="frame" cx="365" cy="365" r="347.6" />
@@ -137,9 +138,9 @@
               </g>
             </g>
           </svg>
-          <!--  ___________________________________ SVG wheel end ____________________________________   -->
+          <!-- End of SVG Wheel -->
         </div>
-        <!-- End of wheel div Zone -->
+        <!-- End of Lucky Wheel Div Zone -->
       </div>
     </div>
 
@@ -176,9 +177,9 @@
     </div>
     <!-- End of Modal Zone -->
 
-    <!-- 引入 script.js 文件 -->
+    <!-- Include JS files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.1/gsap.min.js"></script>
-    <script src="luckywheel.js"></script>
-    <script src="modal.js"></script>
+    <script src="assets/js/lucky-wheel.js"></script>
+    <script src="assets/js/modal.js"></script>
   </body>
 </html>
