@@ -151,7 +151,13 @@
           <button id="menuButton" class="btn btn-primary">菜單</button>
         </div>
         <div class="col-xs-6 col-lg-6 col-md-6">
-          <button id="selectButton" onclick="selectDrink()" class="btn btn-primary">請選擇</button>
+          <button
+            id="selectButton"
+            onclick="selectDrink()"
+            class="btn btn-primary"
+          >
+            請選擇
+          </button>
         </div>
       </div>
     </div>
@@ -160,9 +166,8 @@
     <!-- Menu Modal Zone -->
     <div id="menuModalOverlay" class="modal-overlay">
       <div class="modal">
-          <h2>這是 Menu Modal 彈框</h2>
-          <p>這是一些內容...</p>
-          <button id="closeMenuModalBtn" class="close-btn">關閉</button>
+        <div id="menu"></div>        
+        <button id="closeMenuModalBtn" class="close-btn">關閉</button>
       </div>
     </div>
     <!-- End of Menu Modal Zone -->
@@ -170,9 +175,9 @@
     <!-- Result Modal Zone -->
     <div id="resultModalOverlay" class="modal-overlay">
       <div class="modal">
-          <h2>這是 Result Modal 彈框</h2>
-          <p id="result"></p>
-          <button id="closeResultModalBtn" class="close-btn">關閉</button>
+        <h2>這是 Result Modal 彈框</h2>
+        <p id="result"></p>
+        <button id="closeResultModalBtn" class="close-btn">關閉</button>
       </div>
     </div>
     <!-- End of Result Modal Zone -->
