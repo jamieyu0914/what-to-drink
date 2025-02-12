@@ -1,7 +1,5 @@
-// luckywheel animation with Greensock  ---------------------------------
-
 $(document).ready(function () {
-  //  Setup variables
+  //  Setup Variables
   var wheel = $(".wheel"),
     active = $(".active"),
     currentRotation,
@@ -11,7 +9,7 @@ $(document).ready(function () {
     $btnPlay = $("#selectButton"),
     $btnSlowMo = $("#menuButton");
 
-  //  Random degree
+  //  Random Degree
   function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
@@ -30,7 +28,7 @@ $(document).ready(function () {
     .to(active, 0.13, { rotation: 3, ease: Power4.easeOut })
     .add("end");
 
-  //  Luckywheel animation
+  //  Lucky Wheel Animation
   spinWheel.to(wheel, 5, {
     rotation: deg,
     transformOrigin: "50% 50%",
@@ -54,12 +52,12 @@ $(document).ready(function () {
     },
   });
   spinWheel.add("end");
-  // Play animation
+  //  Play Animation
   $btnPlay.click(function () {
     indicator.timeScale(1).seek(0);
     spinWheel.timeScale(1).seek(0);
   });
-  //  Slow motion
+  //  Slow Motion
   $btnSlowMo.click(function () {
     indicator.timeScale(0.2).seek(0.5);
     spinWheel.timeScale(0.2).seek(0.5);
