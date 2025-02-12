@@ -151,7 +151,7 @@
           <button id="menuButton" class="btn btn-primary">菜單</button>
         </div>
         <div class="col-xs-6 col-lg-6 col-md-6">
-          <button id="selectButton" class="btn btn-primary">請選擇</button>
+          <button id="selectButton" onclick="selectDrink()" class="btn btn-primary">請選擇</button>
         </div>
       </div>
     </div>
@@ -171,7 +171,7 @@
     <div id="resultModalOverlay" class="modal-overlay">
       <div class="modal">
           <h2>這是 Result Modal 彈框</h2>
-          <p>這是一些內容...</p>
+          <p id="result"></p>
           <button id="closeResultModalBtn" class="close-btn">關閉</button>
       </div>
     </div>
@@ -181,5 +181,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.1/gsap.min.js"></script>
     <script src="assets/js/lucky-wheel.js"></script>
     <script src="assets/js/modal.js"></script>
+    <script src="assets/js/random-drink.js"></script>
   </body>
 </html>
