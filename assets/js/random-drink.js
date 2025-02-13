@@ -1,17 +1,29 @@
-// the Array of Drinks
-const drinks = [
-    "珍珠奶茶",
-    "紅茶",
-    "綠茶",
-    "鮮奶茶",
-    "黑磚奶茶",
-    "抹茶拿鐵",
-];
+import drinksMenu from './drinks-menu.js';
 
-// Select a Drink
 function selectDrink() {
+    // Get all drinks
+    const drinks = [
+        ...drinksMenu["fresh juices"],
+        ...drinksMenu["smoothies"],
+        ...drinksMenu["specials"],
+        ...drinksMenu["mellow fresh milks"],
+        ...drinksMenu["hot drinks"],
+        ...drinksMenu["fine teas"],
+        ...drinksMenu["milk teas"],
+        ...drinksMenu["winter melons"],
+        ...drinksMenu["yakult and polyphenols"],
+    ];
+
     const randomDrink = drinks[Math.floor(Math.random() * drinks.length)];
 
-    // Display the Result
-    document.getElementById("result").textContent = "今天選擇的飲料是：" + randomDrink;
+    // Display the result
+    document.getElementById("result").textContent = randomDrink;
 }
+
+// Export the function
+window.selectDrink = selectDrink;
+
+// Add event listener to the select button
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("selectButton").addEventListener("click", selectDrink);
+});
