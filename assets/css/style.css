@@ -73,8 +73,8 @@ body {
   text-align: center;
   margin: auto;
   background-color: #60c41d;
-  width: 80vw;
-  height: 90vh;
+  width: 60vw;
+  height: 60vh;
 }
 
 .slogan {
@@ -87,7 +87,7 @@ body {
 .text-slogan {
   text-align: left;
   margin: auto;
-  font-size: 100px;
+  font-size: 10vw;
   font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   font-weight: 800;
   width: fit-content;
@@ -145,20 +145,29 @@ body {
 }
 
 .modal {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 300px;
-    text-align: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .close-btn {
-    margin-top: 10px;
-    padding: 8px 16px;
-    border: none;
-    background: crimson;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
+  margin-top: 10px;
+  padding: 8px 16px;
+  border: none;
+  background: crimson;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Styles for the Menu Modal Content */
+#menu {
+  background-image: url('../images/menu.png');
+  width: 80vw;
+  height: 45vw;
+  background-size: contain; /* Change from cover to contain */
+  background-repeat: no-repeat;
+  background-position: center;
 }
