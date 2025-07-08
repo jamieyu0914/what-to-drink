@@ -6,7 +6,7 @@ $(document).ready(function () {
     lastRotation = 0,
     tolerance,
     deg,
-    $btnPlay = $("#selectButton"),
+    $btnPlay = $("#ramdomButton"),
     $btnSlowMo = $("#menuButton");
 
   //  Random Degree
@@ -34,18 +34,20 @@ $(document).ready(function () {
     transformOrigin: "50% 50%",
     ease: Power4.easeOut,
     onUpdate: function () {
-      currentRotation = Math.round(this.target[0]._gsTransform.rotation); //_gsTransform: current position of the wheel
-      tolerance = currentRotation - lastRotation;
+      if (this.target && this.target[0] && this.target[0]._gsTransform) {
+        currentRotation = Math.round(this.target[0]._gsTransform.rotation); //_gsTransform: current position of the wheel
+        tolerance = currentRotation - lastRotation;
 
-      console.log("lastRot: " + lastRotation);
-      console.log("currentRot: " + currentRotation);
-      console.log("tol: " + tolerance);
-      console.log(indicator.progress());
-      console.log("spinwheelprogress: " + spinWheel.progress());
+        console.log("lastRot: " + lastRotation);
+        console.log("currentRot: " + currentRotation);
+        console.log("tol: " + tolerance);
+        console.log(indicator.progress());
+        console.log("spinwheelprogress: " + spinWheel.progress());
 
-      if (Math.round(currentRotation) % (360 / 12) <= tolerance) {
-        if (indicator.progress() > 0.2 || indicator.progress() === 0) {
-          indicator.play(0);
+        if (Math.round(currentRotation) % (360 / 12) <= tolerance) {
+          if (indicator.progress() > 0.2 || indicator.progress() === 0) {
+            indicator.play(0);
+          }
         }
       }
       lastRotation = currentRotation;

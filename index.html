@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="assets/css/style.css" />
 
     <!-- Include Bootstrap CSS files -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/4.0.0-beta/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/snap-svg/0.5.1/snap.svg-min.js"></script>
   </head>
   <body>
@@ -148,15 +148,29 @@
     <div class="container">
       <div class="row-buttons">
         <div class="col-xs-6 col-lg-6 col-md-6">
-          <button id="menuButton" class="btn btn-primary">菜單</button>
+          <button 
+            id="menuButton" 
+            class="btn btn-primary"
+          >
+          菜單
+        </button>
         </div>
         <div class="col-xs-6 col-lg-6 col-md-6">
-          <button
-            id="selectButton"
-            onclick="selectDrink()"
+          <button 
+            id="selectButton" 
+            onclick="checkItems()" 
             class="btn btn-primary"
           >
             請選擇
+          </button>
+        </div>
+        <div class="col-xs-6 col-lg-6 col-md-6">
+          <button
+            id="ramdomButton"
+            onclick="randomDrink()"
+            class="btn btn-primary"
+          >
+            隨機結果
           </button>
         </div>
       </div>
@@ -166,8 +180,28 @@
     <!-- Menu Modal Zone -->
     <div id="menuModalOverlay" class="modal-overlay">
       <div class="modal" style="width: 80vw;">
-        <div id="menu"></div>        
+        <div id="menu">
+        </div>        
         <button id="closeMenuModalBtn" class="close-btn">關閉</button>
+      </div>
+    </div>
+    <!-- End of Menu Modal Zone -->
+
+    <!-- List Modal Zone -->
+    <div id="listModalOverlay" class="modal-overlay">
+      <div class="modal" style="width: 80vw;">
+        <div id="list">
+          <div id="freshJuices"></div>
+          <div id="smoothies"></div>
+          <div id="specials"></div>
+          <div id="mellowFreshMilks"></div>
+          <div id="hotDrinks"></div>
+          <div id="fineTeas"></div>
+          <div id="milkTeas"></div>
+          <div id="winterMelons"></div>
+          <div id="yakultAndPolyphenols"></div>
+        </div>        
+        <button id="closeListModalBtn" class="close-btn">關閉</button>
       </div>
     </div>
     <!-- End of Menu Modal Zone -->
@@ -183,8 +217,9 @@
 
     <!-- Include JS files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.1/gsap.min.js"></script>
-    <script src="assets/js/lucky-wheel.js"></script>
-    <script src="assets/js/modal.js"></script>
-    <script src="assets/js/drinks-menu.js"></script>
+    <script type="module" src="assets/js/lucky-wheel.js"></script>
+    <script type="module" src="assets/js/modal.js"></script>
+    <script type="module" src="assets/js/drinks-menu.js"></script>
+    <script type="module" src="assets/js/check-items.js"></script>
     <script type="module" src="assets/js/random-drink.js" defer></script>
 </html>

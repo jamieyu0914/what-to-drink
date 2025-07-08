@@ -171,3 +171,12 @@ body {
   background-repeat: no-repeat;
   background-position: center;
 }
+
+/* Styles for the List Modal Content */
+#list {
+  width: 80vw;
+  height: 45vw;
+  background-size: contain; /* Change from cover to contain */
+  background-repeat: no-repeat;
+  background-position: center;
+}
