@@ -14,6 +14,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeResultModalBtn = document.getElementById("closeResultModalBtn");
   const resultModalOverlay = document.getElementById("resultModalOverlay");
 
+  // Add ESC key support to close modals
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (menuModalOverlay && menuModalOverlay.style.display === "flex") {
+        menuModalOverlay.style.display = "none";
+      }
+      if (listModalOverlay && listModalOverlay.style.display === "flex") {
+        listModalOverlay.style.display = "none";
+      }
+      if (resultModalOverlay && resultModalOverlay.style.display === "flex") {
+        resultModalOverlay.style.display = "none";
+      }
+    }
+  });
+
   // Click Button to Open Menu Modal
   menuButton.addEventListener("click", () => {
     menuModalOverlay.style.display = "flex";
