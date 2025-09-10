@@ -164,7 +164,6 @@ body {
 
 /* Styles for the Menu Modal Content */
 #menu {
-<<<<<<< Updated upstream:backend/src/main/resources/static/assets/css/style.css
   background-image: url("../images/menu.png");
   width: 80vw;
   height: 45vw;
@@ -175,9 +174,7 @@ body {
 
 /* Styles for the List Modal Content */
 #list {
-=======
   /* background-image: url('../images/menu.png'); */
->>>>>>> Stashed changes:assets/css/style.css
   width: 80vw;
   height: 45vw;
   background-size: contain; /* Change from cover to contain */

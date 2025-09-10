@@ -11,6 +11,9 @@
       <div class="col-xs-6 col-lg-6 col-md-6">
         <button id="ramdomButton" @click="openRandomModal" class="btn btn-primary">隨機結果</button>
       </div>
+      <div class="col-xs-6 col-lg-6 col-md-6">
+        <button id="openAIAgentButton" @click="openAIAgentModal" class="btn btn-primary">推薦小幫手</button>
+      </div>
     </div>
   </div>
   <!-- End of Button Zone -->
@@ -31,5 +34,9 @@ const openSelectModal = () => {
 
 const openRandomModal = () => {
   router.push('/random')
+}
+
+const openAIAgentModal = () => {
+  router.push('/ai-agent')
 }
 </script>

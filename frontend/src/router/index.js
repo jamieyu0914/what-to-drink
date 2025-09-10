@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import MenuView from '../views/MenuView.vue'
 import SelectView from '../views/SelectView.vue'
 import RandomView from '../views/RandomView.vue'
+import AIAgentView from '../views/AIAgentView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +27,11 @@ const router = createRouter({
       path: '/random',
       name: 'random',
       component: RandomView,
+    },
+    {
+      path: '/ai-agent',
+      name: 'ai-agent',
+      component: AIAgentView,
     },
   ],
 })
