@@ -1,6 +1,6 @@
 <template>
   <div class="random-display">
-    <h2>為您推薦...</h2>
+    <h2>來一杯...</h2>
     <div class="random-content">
       <div v-if="randomResult" class="result-display">
         <h3>{{ randomResult }}</h3>

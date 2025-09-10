@@ -5,14 +5,18 @@ import LuckyWheel from '../components/LuckyWheel.vue'
 import ControlButtons from '../components/ControlButtons.vue'
 
 let luckyWheelModule = null
-let modalModule = null
 
 onMounted(async () => {
   try {
     // Import and initialize JavaScript modules
     luckyWheelModule = await import('../assets/js/lucky-wheel.js')
-    modalModule = await import('../assets/js/modal.js')
     await import('../assets/js/drinks-menu.js')
+
+    // Initialize the lucky wheel if the module was loaded successfully
+    if (luckyWheelModule && luckyWheelModule.default) {
+      luckyWheelModule.default()
+    }
+
   } catch (error) {
     console.error('Error loading modules:', error)
   }
