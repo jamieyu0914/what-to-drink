@@ -1,17 +1,19 @@
 <template>
   <div class="random-display">
-    <h2>隨機飲料生成器</h2>
+    <h2>為您推薦...</h2>
     <div class="random-content">
-      <button @click="generateRandomDrink" class="btn btn-primary">生成隨機飲料</button>
       <div v-if="randomResult" class="result-display">
-        <h3>為您推薦：{{ randomResult }}</h3>
+        <h3>{{ randomResult }}</h3>
+      </div>
+      <div v-else class="loading">
+        正在為您選擇飲品...
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const randomResult = ref('')
 
@@ -39,6 +41,11 @@ const generateRandomDrink = async () => {
     console.error('Error generating random drink:', error)
   }
 }
+
+// Call the function when component mounts
+onMounted(() => {
+  generateRandomDrink()
+})
 </script>
 
 <style scoped>
@@ -61,32 +68,19 @@ const generateRandomDrink = async () => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.btn {
-  padding: 15px 30px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 18px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.btn:hover {
-  background: #218838;
-}
-
 .result-display {
-  margin-top: 30px;
-  padding: 20px;
-  background: #f8f9fa;
   border-radius: 8px;
-  border-left: 4px solid #28a745;
 }
 
 .result-display h3 {
   color: #155724;
   margin: 0;
   font-size: 24px;
+}
+
+.loading {
+  color: #666;
+  font-style: italic;
+  padding: 20px;
 }
 </style>

@@ -8,3 +8,18 @@
     </div>
   </div>
 </template>
+
+<style scoped>
+.menuImage {
+    width: 90%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+}
+
+.menu-image {
+    max-width: 95vh;
+    justify-self: center;
+    border-radius: 20px;
+}
+</style>

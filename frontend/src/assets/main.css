@@ -7,18 +7,6 @@
   font-weight: normal;
 }
 
-.menuImage {
-    width: 90%;
-    margin: 0 auto;
-    display: flex;
-    justify-content: center;
-}
-
-.menu-image {
-    max-width: 95vh;
-    justify-self: center;
-}
-
 a,
 .green {
   text-decoration: none;
