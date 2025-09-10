@@ -8,7 +8,7 @@
       自動選擇
     </button>
     <div v-if="selectedResult" class="result-display">
-      <h3>隨機結果：{{ selectedResult }}</h3>
+      <h3>選擇結果：{{ selectedResult }}</h3>
     </div>
   </div>
 </template>
@@ -20,8 +20,13 @@ const selectedResult = ref('')
 
 const populateSelectList = async () => {
   try {
-    const drinksMenuModule = await import('../assets/js/drinks-menu.js')
-    const drinksMenu = drinksMenuModule.default
+    // 從後端 API 獲取飲料菜單
+    const response = await fetch('http://localhost:8088/api/drinks/menu')
+    if (!response.ok) {
+      throw new Error('Failed to fetch drinks menu')
+    }
+
+    const drinksMenu = await response.json()
 
     const container = document.getElementById('selectContent')
     if (!container) return
@@ -42,37 +47,40 @@ const populateSelectList = async () => {
     ]
 
     lists.forEach((list, listIndex) => {
-      list.forEach((label, index) => {
-        // 建立 checkbox 元素
-        const checkbox = document.createElement('input')
-        checkbox.type = 'checkbox'
-        checkbox.id = `option_${listIndex}_${index}`
-        checkbox.name = 'interests'
-        checkbox.value = label
+      if (list) {
+        list.forEach((label, index) => {
+          // 建立 checkbox 元素
+          const checkbox = document.createElement('input')
+          checkbox.type = 'checkbox'
+          checkbox.id = `option_${listIndex}_${index}`
+          checkbox.name = 'interests'
+          checkbox.value = label
 
-        // 建立對應的 label 元素
-        const labelElement = document.createElement('label')
-        labelElement.htmlFor = checkbox.id
-        labelElement.textContent = label
-        labelElement.style.marginLeft = '8px'
-        labelElement.style.color = '#fff'
-        labelElement.style.fontSize = '20px'
+          // 建立對應的 label 元素
+          const labelElement = document.createElement('label')
+          labelElement.htmlFor = checkbox.id
+          labelElement.textContent = label
+          labelElement.style.marginLeft = '8px'
+          labelElement.style.color = '#fff'
+          labelElement.style.fontSize = '20px'
 
-        // 建立包裝容器
-        const itemContainer = document.createElement('div')
-        itemContainer.style.marginBottom = '8px'
-        itemContainer.appendChild(checkbox)
-        itemContainer.appendChild(labelElement)
+          // 建立包裝容器
+          const itemContainer = document.createElement('div')
+          itemContainer.style.marginBottom = '8px'
+          itemContainer.appendChild(checkbox)
+          itemContainer.appendChild(labelElement)
 
-        container.appendChild(itemContainer)
-      })
+          container.appendChild(itemContainer)
+        })
+      }
     })
   } catch (error) {
     console.error('Error loading drinks for selection:', error)
+    alert('無法載入飲料菜單，請確認後端服務是否啟動')
   }
 }
 
-const generateFromSelection = () => {
+const generateFromSelection = async () => {
   const checkboxes = document.querySelectorAll('input[name="interests"]:checked')
   if (checkboxes.length === 0) {
     alert('請至少選擇一項飲料')
@@ -80,8 +88,32 @@ const generateFromSelection = () => {
   }
 
   const selectedDrinks = Array.from(checkboxes).map((checkbox) => checkbox.value)
-  const randomChoice = selectedDrinks[Math.floor(Math.random() * selectedDrinks.length)]
-  selectedResult.value = randomChoice
+
+  try {
+    // 呼叫後端 API 來獲取隨機結果
+    const response = await fetch('http://localhost:8088/api/drinks/auto-select', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(selectedDrinks)
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to get auto-selected drink')
+    }
+
+    const result = await response.json()
+    if (result.error) {
+      alert(result.error)
+      return
+    }
+
+    selectedResult.value = result.result
+  } catch (error) {
+    console.error('Error getting random drink:', error)
+    alert('無法獲取隨機結果，請確認後端服務是否啟動')
+  }
 }
 
 onMounted(() => {
