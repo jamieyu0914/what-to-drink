@@ -16,4 +16,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
   },
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['@aws-sdk/client-s3'],
+  },
 })

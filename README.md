@@ -16,8 +16,8 @@ height = 80vw / 1.78 ≈ 45vw
 ### Backend API Usage
 1. The backend API server runs on `http://localhost:8088/api`.
 2. You can fetch a random drink suggestion by sending a GET request to `/api/drinks/auto-select` and so on.
-3. While modifying the backend code, you should cd into the `backend/` directory.
-4. Then use `./mvnw clean package -DskipTests` to build the project and run the generated jar file in the `target/` directory.
+3. `backend/target/demo-0.0.1-SNAPSHOT.jar` is the generated jar file after building the project, it's too large to be uploaded to GitHub, so you need to build it by yourself.
+4. So, you can use `./mvnw clean package -DskipTests` to build the project if you have Java and Maven installed.
 
 ### Docker Commands
 Make sure you have Docker and Docker Compose installed on your machine.

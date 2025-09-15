@@ -136,7 +136,7 @@ body {
 
 /* Styles for the Menu Modal Content */
 #menu {
-  background-image: url("../images/menu.png");
+  background-image: url("./images/menu.png");
   width: 80vw;
   height: 45vw;
   background-size: contain; /* Change from cover to contain */

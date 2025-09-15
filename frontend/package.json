@@ -15,6 +15,12 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@aws-amplify/auth": "^6.15.1",
+    "@aws-amplify/storage": "^6.9.6",
+    "@aws-sdk/client-s3": "^3.887.0",
+    "aws-amplify": "^6.15.6",
+    "buffer": "^6.0.3",
+    "util": "^0.12.5",
     "vue": "^3.5.20",
     "vue-router": "^4.5.1"
   },

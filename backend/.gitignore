@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Ignore final built jar file ###
+**/target/demo-0.0.1-SNAPSHOT.jar
+**/target/demo-0.0.1-SNAPSHOT.jar.original
+
 ### STS ###
 .apt_generated
 .classpath
@@ -34,3 +38,6 @@ build/
 
 ### .DS_Store
 .DS_Store
+
+### Environment Variables ###
+.env
