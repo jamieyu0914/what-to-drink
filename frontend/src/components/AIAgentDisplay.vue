@@ -22,9 +22,7 @@
           {{ message.content }}
         </div>
       </div>
-      <div v-if="messages.length === 0" class="no-messages">
-        還沒有訊息，開始聊天吧！
-      </div>
+      <div v-if="messages.length === 0" class="no-messages">還沒有訊息，開始聊天吧！</div>
     </div>
 
     <div class="chat-input">
@@ -35,9 +33,7 @@
           placeholder="請輸入您的暱稱..."
           maxlength="20"
         />
-        <button @click="setUsername" :disabled="!tempUsername.trim()">
-          加入聊天
-        </button>
+        <button @click="setUsername" :disabled="!tempUsername.trim()">加入聊天</button>
       </div>
       <div class="message-input" v-else>
         <input
@@ -46,9 +42,8 @@
           placeholder="輸入訊息..."
           maxlength="500"
         />
-        <button @click="sendMessage" :disabled="!newMessage.trim()">
-          發送
-        </button>
+        <button @click="sendMessage" :disabled="!newMessage.trim()">發送</button>
+        <button @click="changeUsername" class="change-username-btn">變更暱稱</button>
       </div>
     </div>
   </div>
@@ -56,6 +51,8 @@
 
 <script setup>
 import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import cognitoAuth from '../utils/cognito.js'
+import amplifyAuth from '../utils/amplify.js'
 
 const messages = ref([])
 const newMessage = ref('')
@@ -71,32 +68,48 @@ const sampleMessages = [
     username: '珍珠控',
     content: '大家好！今天想喝什麼呢？',
     timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    isOwn: false
+    isOwn: false,
   },
   {
     id: 2,
     username: '奶茶迷',
     content: '我推薦珍珠奶茶！',
     timestamp: new Date(Date.now() - 1000 * 60 * 3),
-    isOwn: false
+    isOwn: false,
   },
   {
     id: 3,
     username: '茶葉專家',
     content: '今天天氣熱，來杯冰綠茶如何？',
     timestamp: new Date(Date.now() - 1000 * 60 * 1),
-    isOwn: false
-  }
+    isOwn: false,
+  },
 ]
 
 let messageIdCounter = 4
 
 const setUsername = () => {
   if (tempUsername.value.trim()) {
+    const oldUsername = username.value
     username.value = tempUsername.value.trim()
-    // 模擬歡迎訊息
-    addSystemMessage(`${username.value} 加入了聊天室`)
-    onlineUsers.value++
+
+    // 如果是第一次設定或變更暱稱，發送相應訊息
+    if (!oldUsername) {
+      addSystemMessage(`${username.value} 加入了聊天室`)
+      onlineUsers.value++
+    } else {
+      addSystemMessage(`${oldUsername} 已變更暱稱為 ${username.value}`)
+    }
+  }
+}
+
+const changeUsername = () => {
+  const newUsername = prompt('請輸入新的暱稱:', username.value)
+  if (newUsername && newUsername.trim() && newUsername.trim() !== username.value) {
+    const oldUsername = username.value
+    tempUsername.value = newUsername.trim()
+    username.value = newUsername.trim()
+    addSystemMessage(`${oldUsername} 已變更暱稱為 ${username.value}`)
   }
 }
 
@@ -108,7 +121,7 @@ const sendMessage = async () => {
     username: username.value,
     content: newMessage.value.trim(),
     timestamp: new Date(),
-    isOwn: true
+    isOwn: true,
   }
 
   messages.value.push(message)
@@ -119,9 +132,12 @@ const sendMessage = async () => {
 
   // 模擬其他用戶的回應（50% 機率）
   if (Math.random() > 0.5) {
-    setTimeout(() => {
-      simulateResponse()
-    }, 1000 + Math.random() * 2000)
+    setTimeout(
+      () => {
+        simulateResponse()
+      },
+      1000 + Math.random() * 2000,
+    )
   }
 }
 
@@ -132,7 +148,7 @@ const addSystemMessage = (content) => {
     content: content,
     timestamp: new Date(),
     isOwn: false,
-    isSystem: true
+    isSystem: true,
   }
   messages.value.push(message)
   nextTick(() => scrollToBottom())
@@ -147,7 +163,7 @@ const simulateResponse = () => {
     '這個口味我喜歡',
     '謝謝分享！',
     '我平常都喝這個',
-    '換個口味試試看'
+    '換個口味試試看',
   ]
 
   const usernames = ['咖啡愛好者', '果汁達人', '飲料新手', '冰沙狂人', '紅茶之星', '綠豆沙王者']
@@ -157,7 +173,7 @@ const simulateResponse = () => {
     username: usernames[Math.floor(Math.random() * usernames.length)],
     content: responses[Math.floor(Math.random() * responses.length)],
     timestamp: new Date(),
-    isOwn: false
+    isOwn: false,
   }
 
   messages.value.push(message)
@@ -173,7 +189,7 @@ const scrollToBottom = () => {
 const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString('zh-TW', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -181,6 +197,9 @@ onMounted(() => {
   // 載入示例訊息
   messages.value = [...sampleMessages]
   nextTick(() => scrollToBottom())
+
+  // 檢查是否已登入並自動設定暱稱
+  autoSetUsernameFromLogin()
 
   // 模擬線上用戶數變化
   const interval = setInterval(() => {
@@ -191,6 +210,37 @@ onMounted(() => {
     clearInterval(interval)
   })
 })
+
+// 自動從登入資訊設定暱稱
+const autoSetUsernameFromLogin = () => {
+  let currentUser = null
+
+  // 優先檢查 Amplify 登入狀態
+  if (amplifyAuth.isConfigured()) {
+    currentUser = amplifyAuth.getCurrentUser()
+  }
+
+  // 如果沒有 Amplify 用戶，檢查 Cognito
+  if (!currentUser) {
+    currentUser = cognitoAuth.getCurrentUser()
+  }
+
+  if (currentUser) {
+    // 從用戶資訊中提取暱稱
+    let displayName =
+      currentUser.name ||
+      currentUser.username ||
+      (currentUser.email ? currentUser.email.split('@')[0] : null)
+
+    if (displayName) {
+      username.value = displayName
+      tempUsername.value = displayName
+      // 發送歡迎訊息
+      addSystemMessage(`${displayName} 已自動加入聊天室`)
+      onlineUsers.value++
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -236,8 +286,13 @@ onMounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .chat-messages {
@@ -302,12 +357,14 @@ onMounted(() => {
   background: white;
 }
 
-.username-input, .message-input {
+.username-input,
+.message-input {
   display: flex;
   gap: 12px;
 }
 
-.username-input input, .message-input input {
+.username-input input,
+.message-input input {
   flex: 1;
   padding: 12px 16px;
   border: 2px solid #e2e8f0;
@@ -317,11 +374,13 @@ onMounted(() => {
   transition: border-color 0.2s;
 }
 
-.username-input input:focus, .message-input input:focus {
+.username-input input:focus,
+.message-input input:focus {
   border-color: #ecab29;
 }
 
-.username-input button, .message-input button {
+.username-input button,
+.message-input button {
   padding: 12px 24px;
   background: #fa8500;
   color: white;
@@ -329,15 +388,30 @@ onMounted(() => {
   border-radius: 25px;
   cursor: pointer;
   font-weight: 600;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
-.username-input button:hover, .message-input button:hover {
+.change-username-btn {
+  padding: 12px 16px !important;
+  background: #6b7280 !important;
+  margin-left: 8px;
+  font-size: 12px !important;
+}
+
+.change-username-btn:hover {
+  background: #4b5563 !important;
+}
+
+.username-input button:hover,
+.message-input button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(234, 172, 102, 0.4);
 }
 
-.username-input button:disabled, .message-input button:disabled {
+.username-input button:disabled,
+.message-input button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;

@@ -6,7 +6,8 @@ export class AmplifyAuth {
     this.userPoolId = import.meta.env.VITE_COGNITO_USER_POOL_ID
     this.clientId = import.meta.env.VITE_COGNITO_CLIENT_ID
     this.domain = import.meta.env.VITE_COGNITO_DOMAIN
-    this.redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI || window.location.origin
+    this.redirectUri =
+      import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/login`
     this.s3BucketName = import.meta.env.VITE_S3_BUCKET_NAME
     this.awsRegion = import.meta.env.VITE_AWS_REGION || 'us-east-1'
   }

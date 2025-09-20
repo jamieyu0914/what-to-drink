@@ -5,7 +5,9 @@ export class CognitoAuth {
   constructor() {
     this.domain = import.meta.env.VITE_COGNITO_DOMAIN
     this.clientId = import.meta.env.VITE_COGNITO_CLIENT_ID
-    this.redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI || window.location.origin
+    // 優先使用環境變數的重定向 URI，否則使用登入頁面
+    this.redirectUri =
+      import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/login`
   }
 
   // 檢查是否已設定 Cognito

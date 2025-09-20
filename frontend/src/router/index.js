@@ -4,6 +4,10 @@ import MenuView from '../views/MenuView.vue'
 import SelectView from '../views/SelectView.vue'
 import RandomView from '../views/RandomView.vue'
 import AIAgentView from '../views/AIAgentView.vue'
+import LoginView from '../views/LoginView.vue'
+import PreLoginView from '../views/PreLoginView.vue'
+import RegisterView from '../views/RegisterView.vue'
+import ForgotPasswordView from '../views/ForgotPasswordView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +36,26 @@ const router = createRouter({
       path: '/ai-agent',
       name: 'ai-agent',
       component: AIAgentView,
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+    },
+    {
+      path: '/pre-login',
+      name: 'pre-login',
+      component: PreLoginView,
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
     },
   ],
 })
