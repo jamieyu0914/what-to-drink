@@ -4,9 +4,7 @@
     <div id="selectBox" class="select-box">
       <div id="selectContent" class="select-content"></div>
     </div>
-    <button @click="generateFromSelection" class="auto-select-btn">
-      自動選擇
-    </button>
+    <button @click="generateFromSelection" class="auto-select-btn">自動選擇</button>
     <div v-if="selectedResult" class="result-display">
       <h3>選擇結果：{{ selectedResult }}</h3>
     </div>
@@ -21,7 +19,7 @@ const selectedResult = ref('')
 const populateSelectList = async () => {
   try {
     // 從後端 API 獲取飲料菜單
-    const response = await fetch('http://localhost:8088/api/drinks/menu')
+    const response = await fetch('http://localhost:8080/api/drinks/menu')
     if (!response.ok) {
       throw new Error('Failed to fetch drinks menu')
     }
@@ -91,12 +89,12 @@ const generateFromSelection = async () => {
 
   try {
     // 呼叫後端 API 來獲取隨機結果
-    const response = await fetch('http://localhost:8088/api/drinks/auto-select', {
+    const response = await fetch('http://localhost:8080/api/drinks/auto-select', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(selectedDrinks)
+      body: JSON.stringify(selectedDrinks),
     })
 
     if (!response.ok) {
@@ -138,17 +136,17 @@ onMounted(() => {
 }
 
 .select-box {
-    background: #fa8500;
-    padding: 50px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    max-height: 400px;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    width: max-content;
-    border-radius: 8px;
-    overflow: hidden;
+  background: #fa8500;
+  padding: 50px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: max-content;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .select-content {
@@ -197,5 +195,4 @@ onMounted(() => {
   color: #2c5530;
   margin: 0;
 }
-
 </style>

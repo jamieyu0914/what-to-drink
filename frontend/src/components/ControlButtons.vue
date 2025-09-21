@@ -35,6 +35,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import cognitoAuth from '../utils/cognito.js'
 import amplifyAuth from '../utils/amplify.js'
+import authStore from '../utils/auth.js'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
@@ -136,17 +137,9 @@ const handleCognitoLogin = async () => {
         `您已登入為：${currentUser.value?.email || '用戶'}\n\n是否要登出？`,
       )
       if (shouldLogout) {
-        // 檢查是否使用 Amplify 登入
-        if (currentUser.value?.loginType === 'amplify') {
-          await amplifyAuth.signOut()
-          alert('已登出')
-        } else if (cognitoAuth.isConfigured()) {
-          cognitoAuth.clearCurrentUser()
-          window.location.href = cognitoAuth.getLogoutUrl()
-        } else {
-          cognitoAuth.clearCurrentUser()
-          alert('已登出')
-        }
+        // 使用統一的 auth-store 登出方法
+        await authStore.logout(router)
+        alert('已登出')
         updateLoginStatus()
       }
       return

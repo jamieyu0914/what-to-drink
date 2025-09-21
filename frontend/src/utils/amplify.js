@@ -1,5 +1,5 @@
 // AWS Amplify 工具函數
-// 處理 Amplify 登入、登出和 S3 上傳
+// 處理 Amplify 登入、登出
 
 export class AmplifyAuth {
   constructor() {
@@ -8,7 +8,6 @@ export class AmplifyAuth {
     this.domain = import.meta.env.VITE_COGNITO_DOMAIN
     this.redirectUri =
       import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/login`
-    this.s3BucketName = import.meta.env.VITE_S3_BUCKET_NAME
     this.awsRegion = import.meta.env.VITE_AWS_REGION || 'us-east-1'
   }
 
@@ -66,11 +65,41 @@ export class AmplifyAuth {
 
   // 登出
   async signOut() {
-    this.clearCurrentUser()
+    try {
+      this.clearCurrentUser()
 
-    if (this.isConfigured()) {
-      const logoutUrl = `https://${this.domain}/logout?client_id=${this.clientId}&logout_uri=${encodeURIComponent(this.redirectUri)}`
-      window.location.href = logoutUrl
+      if (this.isConfigured()) {
+        try {
+          const logoutUrl = `https://${this.domain}/logout?client_id=${this.clientId}&logout_uri=${encodeURIComponent(this.redirectUri)}`
+
+          // 檢查 logoutUrl 是否有效
+          if (logoutUrl && logoutUrl.startsWith('https://')) {
+            console.log('重定向到 Amplify 登出頁面:', logoutUrl)
+            window.location.href = logoutUrl
+          } else {
+            throw new Error('無效的登出 URL')
+          }
+        } catch (urlError) {
+          console.error('生成 Amplify 登出 URL 失敗:', urlError)
+          // 回退到本地登出
+          window.location.href = '/login'
+        }
+      } else {
+        // 直接重定向到登入頁面
+        window.location.href = '/login'
+      }
+    } catch (error) {
+      console.error('Amplify 登出錯誤:', error)
+      // 確保總是清除用戶信息
+      this.clearCurrentUser()
+      // 確保總是能夠回到登入頁面
+      try {
+        window.location.href = '/login'
+      } catch (redirectError) {
+        console.error('重定向失敗:', redirectError)
+        // 如果連重定向都失敗，嘗試重新載入頁面
+        window.location.reload()
+      }
     }
   }
 
@@ -107,38 +136,6 @@ export class AmplifyAuth {
     }
 
     return null
-  }
-
-  // 上傳檔案到 S3
-  async uploadToS3(file, s3Key) {
-    if (!this.s3BucketName) {
-      throw new Error('S3 Bucket 名稱未設定')
-    }
-
-    if (!this.isLoggedIn()) {
-      throw new Error('請先登入才能上傳檔案')
-    }
-
-    try {
-      // 在實際應用中，這裡應該使用 AWS SDK 或 Amplify Storage
-      // 這裡模擬上傳成功的情況
-      console.log('模擬上傳檔案到 S3:', { file: file.name, s3Key })
-
-      // 模擬上傳延遲
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const s3Url = `https://${this.s3BucketName}.s3.${this.awsRegion}.amazonaws.com/${s3Key}`
-
-      return {
-        success: true,
-        s3Key: s3Key,
-        s3Url: s3Url,
-        message: '檔案上傳成功',
-      }
-    } catch (error) {
-      console.error('S3 上傳錯誤:', error)
-      throw new Error(`上傳失敗: ${error.message}`)
-    }
   }
 }
 

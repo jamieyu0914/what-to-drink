@@ -1,297 +1,715 @@
 <template>
-  <div class="chat-room">
-    <div class="chat-header">
-      <h2>聊天室</h2>
-      <div class="online-users">
-        <span class="online-indicator"></span>
-        線上用戶: {{ onlineUsers }}
+  <div class="ai-agent-container">
+    <!-- AI Agent Header -->
+    <div class="ai-header">
+      <div class="ai-avatar">
+        <span class="ai-icon">🤖</span>
+      </div>
+      <div class="ai-info">
+        <h2>AI 智能推薦助手</h2>
+        <p class="ai-status" :class="{ thinking: isLoading }">
+          {{ isLoading ? '正在思考中...' : '' }}
+        </p>
       </div>
     </div>
 
+    <!-- Chat Messages -->
     <div class="chat-messages" ref="messagesContainer">
+      <div class="welcome-message" v-if="messages.length === 0">
+        <div class="message ai-message">
+          <div class="message-content">
+            <h3>👋 歡迎使用 AI 智能推薦！</h3>
+            <p>告訴我您的心情、想法，或是想喝什麼類型的飲品，我會為您推薦最適合的選擇。</p>
+            <div class="example-prompts">
+              <h4>💡 您可以這樣說：</h4>
+              <div class="prompt-examples">
+                <button @click="useExamplePrompt('我今天很累，想要提神')" class="example-btn">
+                  😴 我今天很累，想要提神
+                </button>
+                <button @click="useExamplePrompt('想要喝點甜的，心情很好')" class="example-btn">
+                  😊 想要喝點甜的，心情很好
+                </button>
+                <button @click="useExamplePrompt('天氣很熱，想要清爽的飲品')" class="example-btn">
+                  🌞 天氣很熱，想要清爽的飲品
+                </button>
+                <button @click="useExamplePrompt('工作壓力大，需要放鬆')" class="example-btn">
+                  😰 工作壓力大，需要放鬆
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div
         v-for="message in messages"
         :key="message.id"
-        :class="['message', { 'own-message': message.isOwn }]"
+        :class="['message', message.type + '-message']"
       >
-        <div class="message-header">
-          <span class="username">{{ message.username }}</span>
-          <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
+        <div v-if="message.type === 'user'" class="message-content">
+          <div class="user-input">{{ message.content }}</div>
         </div>
-        <div class="message-content">
-          {{ message.content }}
+
+        <div v-else class="message-content">
+          <div
+            v-if="message.moodDetected && message.moodDetected !== '未檢測到心情'"
+            class="mood-info"
+          >
+            <span class="mood-label">🔍 檢測心情：</span>
+            <span class="mood-value">{{ message.moodDetected }}</span>
+          </div>
+
+          <div v-if="message.serviceType" class="service-info">
+            <span class="service-label">🤖 推薦引擎：</span>
+            <span
+              class="service-value"
+              :class="{ bedrock: message.isBedrockAvailable, local: !message.isBedrockAvailable }"
+            >
+              {{ message.serviceType }}
+            </span>
+          </div>
+
+          <div
+            v-if="message.aiResponse && message.aiResponse !== 'AI 正在為您分析...'"
+            class="ai-response"
+          >
+            {{ message.aiReason }}
+          </div>
+
+          <!-- 當沒有有效的 AI 回應時顯示默認信息 -->
+          <div v-else-if="!message.error" class="ai-response">
+            <div class="analyzing-info">
+              <span class="analyzing-icon">🔍</span>
+              <span>正在分析您的需求，請稍候...</span>
+            </div>
+          </div>
+
+          <div
+            v-if="message.recommendations && message.recommendations.length > 0"
+            class="recommendations"
+          >
+            <h4>🍹 為您推薦：</h4>
+            <div class="recommendation-list">
+              <div
+                v-for="rec in message.recommendations"
+                :key="rec.name"
+                class="recommendation-item"
+              >
+                <div class="rec-header">
+                  <span class="rec-name">{{ rec.name }}</span>
+                  <span class="rec-category">{{ rec.category }}</span>
+                  <span v-if="rec.price" class="rec-price">${{ rec.price }}</span>
+                </div>
+                <div class="rec-description">{{ rec.description }}</div>
+                <div class="rec-reason">{{ rec.reason }}</div>
+                <div class="rec-actions">
+                  <button @click="addToFavorites(rec)" class="fav-btn" :disabled="isAddingFavorite">
+                    <span v-if="isAddingFavorite">⏳</span>
+                    <span v-else>⭐ 收藏</span>
+                  </button>
+                  <span class="match-score">匹配度: {{ Math.round(rec.matchScore * 100) }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 當沒有推薦結果時顯示信息 -->
+          <div v-else-if="!message.error && message.serviceType" class="no-recommendations">
+            <div class="no-rec-info">
+              <span class="no-rec-icon">💭</span>
+              <p>目前沒有找到合適的推薦，請嘗試描述更具體的需求或心情。</p>
+              <div class="suggestion-tips">
+                <strong>💡 建議：</strong>
+                <ul>
+                  <li>描述您的心情狀態（如：開心、疲憊、放鬆）</li>
+                  <li>提及偏好的口味（如：甜的、酸的、清爽的）</li>
+                  <li>說明場合或時間（如：上班時、運動後、睡前）</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="message.error" class="error-message">❌ {{ message.error }}</div>
+        </div>
+
+        <div class="message-time">
+          {{ formatTime(message.timestamp) }}
         </div>
       </div>
-      <div v-if="messages.length === 0" class="no-messages">還沒有訊息，開始聊天吧！</div>
+
+      <div v-if="isLoading" class="loading-message">
+        <div class="message ai-message">
+          <div class="message-content">
+            <div class="loading-indicator">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+            <p>正在分析您的需求並生成推薦...</p>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <!-- Input Area -->
     <div class="chat-input">
-      <div class="username-input" v-if="!username">
-        <input
-          v-model="tempUsername"
-          @keyup.enter="setUsername"
-          placeholder="請輸入您的暱稱..."
-          maxlength="20"
-        />
-        <button @click="setUsername" :disabled="!tempUsername.trim()">加入聊天</button>
+      <div class="input-container">
+        <textarea
+          v-model="userInput"
+          @keyup.enter.exact="sendMessage"
+          @keyup.shift.enter="addNewLine"
+          placeholder="告訴我您想要什麼樣的飲品，或是您現在的心情..."
+          :disabled="isLoading"
+          maxlength="1000"
+          rows="2"
+        ></textarea>
+        <button @click="sendMessage" :disabled="!userInput.trim() || isLoading" class="send-btn">
+          <span v-if="isLoading">⏳</span>
+          <span v-else>🚀 推薦</span>
+        </button>
       </div>
-      <div class="message-input" v-else>
-        <input
-          v-model="newMessage"
-          @keyup.enter="sendMessage"
-          placeholder="輸入訊息..."
-          maxlength="500"
-        />
-        <button @click="sendMessage" :disabled="!newMessage.trim()">發送</button>
-        <button @click="changeUsername" class="change-username-btn">變更暱稱</button>
+      <div class="input-footer">
+        <span class="char-count">{{ userInput.length }}/1000</span>
+        <span class="tip">💡 Shift+Enter 換行，Enter 發送</span>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions" v-if="!isLoading">
+      <button @click="clearChat" class="action-btn">🗑️ 清空對話</button>
+      <button @click="showHistory" class="action-btn">📜 查看歷史</button>
+      <button @click="showFavorites" class="action-btn">⭐ 我的收藏</button>
+    </div>
+
+    <!-- 歷史記錄模態窗口 -->
+    <div v-if="showHistoryModal" class="modal-overlay" @click="closeHistoryModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>📜 推薦歷史記錄</h3>
+          <button @click="closeHistoryModal" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="isLoadingHistory" class="loading-state">
+            <div class="loading-spinner">⏳</div>
+            <p>載入歷史記錄中...</p>
+          </div>
+          <div v-else-if="historyError" class="error-state">
+            <p>❌ {{ historyError }}</p>
+            <button @click="showHistory" class="retry-btn">重試</button>
+          </div>
+          <div v-else-if="historyList.length === 0" class="empty-state">
+            <p>📭 還沒有任何推薦歷史記錄</p>
+            <p class="tip">開始與 AI 對話來獲得推薦吧！</p>
+          </div>
+          <div v-else class="history-list">
+            <div v-for="item in historyList" :key="item.id" class="history-item">
+              <div class="history-header">
+                <span class="history-time">{{ formatDate(item.createdAt) }}</span>
+                <span v-if="item.userRating" class="history-rating">
+                  {{ '⭐'.repeat(item.userRating) }} ({{ item.userRating }}/5)
+                </span>
+              </div>
+              <div class="history-content">
+                <div class="user-query">
+                  <strong>🤔 您的需求：</strong>
+                  {{ item.userQuery }}
+                </div>
+                <div
+                  v-if="item.moodDetected && item.moodDetected !== '未檢測到心情'"
+                  class="mood-detected"
+                >
+                  <strong>😊 檢測心情：</strong>
+                  {{ item.moodDetected }}
+                </div>
+                <div v-if="item.aiResponse" class="ai-response">
+                  <strong>🤖 AI 分析：</strong>
+                  {{ item.aiResponse }}
+                </div>
+                <div
+                  v-if="item.recommendations && item.recommendations.length > 0"
+                  class="recommendations"
+                >
+                  <strong>🍹 推薦結果：</strong>
+                  <div class="rec-list">
+                    <div v-for="rec in item.recommendations" :key="rec.name" class="rec-item">
+                      {{ rec.name }} ({{ rec.category }}) - 匹配度:
+                      {{ Math.round(rec.matchScore * 100) }}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="history-actions">
+                <div v-if="!item.userRating" class="rating-section">
+                  <span>評分這次推薦：</span>
+                  <div class="rating-buttons">
+                    <button
+                      v-for="star in 5"
+                      :key="star"
+                      @click="rateRecommendation(item.id, star)"
+                      class="star-btn"
+                    >
+                      ⭐
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 收藏列表模態窗口 -->
+    <div v-if="showFavoritesModal" class="modal-overlay" @click="closeFavoritesModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>⭐ 我的收藏</h3>
+          <button @click="closeFavoritesModal" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="isLoadingFavorites" class="loading-state">
+            <div class="loading-spinner">⏳</div>
+            <p>載入收藏列表中...</p>
+          </div>
+          <div v-else-if="favoritesError" class="error-state">
+            <p>❌ {{ favoritesError }}</p>
+            <button @click="showFavorites" class="retry-btn">重試</button>
+          </div>
+          <div v-else-if="favoritesList.length === 0" class="empty-state">
+            <p>⭐ 還沒有收藏任何飲品</p>
+            <p class="tip">在推薦結果中點擊收藏按鈕來添加喜歡的飲品！</p>
+          </div>
+          <div v-else class="favorites-list">
+            <div v-for="item in favoritesList" :key="item.id" class="favorite-item">
+              <div class="favorite-header">
+                <div class="drink-info">
+                  <h4>{{ item.drinkName }}</h4>
+                  <span class="category">{{ item.category }}</span>
+                  <span v-if="item.price" class="price">${{ item.price }}</span>
+                </div>
+                <button @click="removeFavorite(item.drinkName)" class="remove-btn">🗑️</button>
+              </div>
+              <div v-if="item.description" class="favorite-description">
+                {{ item.description }}
+              </div>
+              <div v-if="item.reason" class="favorite-reason">
+                <strong>推薦理由：</strong>{{ item.reason }}
+              </div>
+              <div v-if="item.notes" class="favorite-notes">
+                <strong>我的備註：</strong>{{ item.notes }}
+              </div>
+              <div class="favorite-footer">
+                <span class="added-time">收藏於 {{ formatDate(item.createdAt) }}</span>
+                <span v-if="item.matchScore" class="match-score">
+                  匹配度: {{ Math.round(item.matchScore * 100) }}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
-import cognitoAuth from '../utils/cognito.js'
-import amplifyAuth from '../utils/amplify.js'
+import { ref, reactive, nextTick, onMounted } from 'vue'
 
+// 響應式數據
 const messages = ref([])
-const newMessage = ref('')
-const username = ref('')
-const tempUsername = ref('')
-const onlineUsers = ref(1)
+const userInput = ref('')
+const isLoading = ref(false)
+const isAddingFavorite = ref(false)
 const messagesContainer = ref(null)
+const serviceStatus = ref(null) // 新增：服務狀態
 
-// 模擬的示例訊息
-const sampleMessages = [
-  {
-    id: 1,
-    username: '珍珠控',
-    content: '大家好！今天想喝什麼呢？',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    isOwn: false,
-  },
-  {
-    id: 2,
-    username: '奶茶迷',
-    content: '我推薦珍珠奶茶！',
-    timestamp: new Date(Date.now() - 1000 * 60 * 3),
-    isOwn: false,
-  },
-  {
-    id: 3,
-    username: '茶葉專家',
-    content: '今天天氣熱，來杯冰綠茶如何？',
-    timestamp: new Date(Date.now() - 1000 * 60 * 1),
-    isOwn: false,
-  },
-]
+// 歷史記錄和收藏相關狀態
+const showHistoryModal = ref(false)
+const showFavoritesModal = ref(false)
+const historyList = ref([])
+const favoritesList = ref([])
+const isLoadingHistory = ref(false)
+const isLoadingFavorites = ref(false)
+const historyError = ref('')
+const favoritesError = ref('')
 
-let messageIdCounter = 4
+// 用戶信息
+const username = ref('TestUser') // 這裡應該從 Cognito 或其他認證系統獲取
 
-const setUsername = () => {
-  if (tempUsername.value.trim()) {
-    const oldUsername = username.value
-    username.value = tempUsername.value.trim()
+let messageId = 0
 
-    // 如果是第一次設定或變更暱稱，發送相應訊息
-    if (!oldUsername) {
-      addSystemMessage(`${username.value} 加入了聊天室`)
-      onlineUsers.value++
-    } else {
-      addSystemMessage(`${oldUsername} 已變更暱稱為 ${username.value}`)
+// API 基礎 URL
+const API_BASE_URL = 'http://localhost:8080/api'
+
+// 生命週期
+onMounted(() => {
+  // 載入服務狀態
+  fetchServiceStatus()
+})
+
+// 獲取服務狀態
+const fetchServiceStatus = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/recommendations/service-status`)
+    if (response.ok) {
+      const data = await response.json()
+      serviceStatus.value = data
+      console.log('服務狀態:', data)
     }
+  } catch (error) {
+    console.error('獲取服務狀態失敗:', error)
   }
 }
 
-const changeUsername = () => {
-  const newUsername = prompt('請輸入新的暱稱:', username.value)
-  if (newUsername && newUsername.trim() && newUsername.trim() !== username.value) {
-    const oldUsername = username.value
-    tempUsername.value = newUsername.trim()
-    username.value = newUsername.trim()
-    addSystemMessage(`${oldUsername} 已變更暱稱為 ${username.value}`)
-  }
+// 方法
+const useExamplePrompt = (prompt) => {
+  userInput.value = prompt
+  sendMessage()
+}
+
+const addNewLine = () => {
+  userInput.value += '\n'
 }
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !username.value) return
+  if (!userInput.value.trim() || isLoading.value) return
 
-  const message = {
-    id: messageIdCounter++,
-    username: username.value,
-    content: newMessage.value.trim(),
+  const messageContent = userInput.value.trim()
+  userInput.value = ''
+
+  // 添加用戶消息
+  messages.value.push({
+    id: messageId++,
+    type: 'user',
+    content: messageContent,
     timestamp: new Date(),
-    isOwn: true,
-  }
+  })
 
-  messages.value.push(message)
-  newMessage.value = ''
+  await scrollToBottom()
 
-  await nextTick()
-  scrollToBottom()
+  // 發送到 AI 服務
+  isLoading.value = true
 
-  // 模擬其他用戶的回應（50% 機率）
-  if (Math.random() > 0.5) {
-    setTimeout(
-      () => {
-        simulateResponse()
+  try {
+    const response = await fetch(`${API_BASE_URL}/recommendations/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      1000 + Math.random() * 2000,
+      body: JSON.stringify({
+        userInput: messageContent,
+        username: username.value,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    // 增加詳細的調試信息
+    console.log('完整 API 響應:', data)
+    console.log('響應狀態:', data.status)
+    console.log('服務類型:', data.serviceType)
+    console.log('Bedrock 可用性:', data.isBedrockAvailable)
+
+    if (data.status === 'error') {
+      // 錯誤響應
+      messages.value.push({
+        id: messageId++,
+        type: 'ai',
+        error: data.message || '發生未知錯誤',
+        timestamp: new Date(),
+      })
+    } else if (data.status === 'success') {
+      // 成功響應 - 檢查必要欄位
+      const moodDetected = data.moodDetected || data.mood || '未檢測到心情'
+      const aiResponse = data.aiResponse || data.response || data.message || 'AI 正在為您分析...'
+      const aiReason = data.aiReason || 'AI 為您精心挑選的飲品推薦'
+      const recommendations = Array.isArray(data.recommendations) ? data.recommendations : []
+
+      // 如果沒有推薦結果，添加提示信息
+      if (recommendations.length === 0) {
+        console.warn('沒有收到推薦結果，可能是後端處理問題')
+      }
+
+      messages.value.push({
+        id: messageId++,
+        type: 'ai',
+        moodDetected: moodDetected,
+        aiResponse: aiResponse,
+        aiReason: aiReason,
+        recommendations: recommendations,
+        serviceType: data.serviceType || '未知服務',
+        isBedrockAvailable: data.isBedrockAvailable || false,
+        timestamp: new Date(),
+      })
+
+      console.log('處理後的 AI 回應數據:', {
+        moodDetected: moodDetected,
+        aiResponse: aiResponse,
+        aiReason: aiReason,
+        recommendations: recommendations,
+        serviceType: data.serviceType,
+        isBedrockAvailable: data.isBedrockAvailable,
+      })
+    } else {
+      // 未知響應格式
+      console.error('未知的響應格式:', data)
+      messages.value.push({
+        id: messageId++,
+        type: 'ai',
+        error: '服務響應格式異常，請聯繫技術支援',
+        timestamp: new Date(),
+      })
+    }
+  } catch (error) {
+    console.error('API 請求失敗:', error)
+    messages.value.push({
+      id: messageId++,
+      type: 'ai',
+      error: '網路連線錯誤，請稍後再試',
+      timestamp: new Date(),
+    })
+  } finally {
+    isLoading.value = false
+    await scrollToBottom()
+  }
+}
+
+const addToFavorites = async (recommendation) => {
+  isAddingFavorite.value = true
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/favorites/add?username=${username.value}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        drinkName: recommendation.name,
+        drinkCategory: recommendation.category,
+        drinkDescription: recommendation.description,
+        price: recommendation.price,
+        notes: `AI推薦: ${recommendation.reason}`,
+      }),
+    })
+
+    if (response.ok) {
+      alert('✅ 已加入收藏！')
+    } else {
+      const error = await response.json()
+      alert('❌ ' + (error.error || '加入收藏失敗'))
+    }
+  } catch (error) {
+    console.error('加入收藏失敗:', error)
+    alert('❌ 網路錯誤，請稍後再試')
+  } finally {
+    isAddingFavorite.value = false
+  }
+}
+
+const clearChat = () => {
+  if (confirm('確定要清空對話紀錄嗎？')) {
+    messages.value = []
+  }
+}
+
+const showHistory = async () => {
+  showHistoryModal.value = true
+  isLoadingHistory.value = true
+  historyError.value = ''
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/history/list?username=${username.value}&limit=50`)
+    if (response.ok) {
+      const data = await response.json()
+      historyList.value = data
+    } else {
+      throw new Error('獲取歷史記錄失敗')
+    }
+  } catch (error) {
+    console.error('獲取歷史記錄失敗:', error)
+    historyError.value = '獲取歷史記錄失敗，請稍後再試'
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+const showFavorites = async () => {
+  showFavoritesModal.value = true
+  isLoadingFavorites.value = true
+  favoritesError.value = ''
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/favorites/list?username=${username.value}`)
+    if (response.ok) {
+      const data = await response.json()
+      favoritesList.value = data
+    } else {
+      throw new Error('獲取收藏列表失敗')
+    }
+  } catch (error) {
+    console.error('獲取收藏列表失敗:', error)
+    favoritesError.value = '獲取收藏列表失敗，請稍後再試'
+  } finally {
+    isLoadingFavorites.value = false
+  }
+}
+
+// 關閉模態窗口
+const closeHistoryModal = () => {
+  showHistoryModal.value = false
+  historyList.value = []
+  historyError.value = ''
+}
+
+const closeFavoritesModal = () => {
+  showFavoritesModal.value = false
+  favoritesList.value = []
+  favoritesError.value = ''
+}
+
+// 移除收藏
+const removeFavorite = async (drinkName) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/favorites/remove?username=${username.value}&drinkName=${encodeURIComponent(drinkName)}`,
+      {
+        method: 'DELETE',
+      },
     )
+
+    if (response.ok) {
+      // 從列表中移除
+      favoritesList.value = favoritesList.value.filter((fav) => fav.drinkName !== drinkName)
+      alert('✅ 已移除收藏！')
+    } else {
+      const error = await response.json()
+      alert('❌ ' + (error.error || '移除收藏失敗'))
+    }
+  } catch (error) {
+    console.error('移除收藏失敗:', error)
+    alert('❌ 移除收藏失敗')
   }
 }
 
-const addSystemMessage = (content) => {
-  const message = {
-    id: messageIdCounter++,
-    username: '系統',
-    content: content,
-    timestamp: new Date(),
-    isOwn: false,
-    isSystem: true,
-  }
-  messages.value.push(message)
-  nextTick(() => scrollToBottom())
-}
+// 為歷史記錄評分
+const rateRecommendation = async (historyId, rating) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/history/rate?historyId=${historyId}&rating=${rating}`,
+      {
+        method: 'POST',
+      },
+    )
 
-const simulateResponse = () => {
-  const responses = [
-    '好建議！',
-    '我也想試試看這個',
-    '聽起來不錯呢',
-    '有推薦的店家嗎？',
-    '這個口味我喜歡',
-    '謝謝分享！',
-    '我平常都喝這個',
-    '換個口味試試看',
-  ]
-
-  const usernames = ['咖啡愛好者', '果汁達人', '飲料新手', '冰沙狂人', '紅茶之星', '綠豆沙王者']
-
-  const message = {
-    id: messageIdCounter++,
-    username: usernames[Math.floor(Math.random() * usernames.length)],
-    content: responses[Math.floor(Math.random() * responses.length)],
-    timestamp: new Date(),
-    isOwn: false,
-  }
-
-  messages.value.push(message)
-  nextTick(() => scrollToBottom())
-}
-
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    if (response.ok) {
+      // 更新本地列表中的評分
+      const historyItem = historyList.value.find((item) => item.id === historyId)
+      if (historyItem) {
+        historyItem.userRating = rating
+      }
+      alert('✅ 評分成功！')
+    } else {
+      const error = await response.json()
+      alert('❌ ' + (error.error || '評分失敗'))
+    }
+  } catch (error) {
+    console.error('評分失敗:', error)
+    alert('❌ 評分失敗')
   }
 }
 
-const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString('zh-TW', {
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
 }
 
-onMounted(() => {
-  // 載入示例訊息
-  messages.value = [...sampleMessages]
-  nextTick(() => scrollToBottom())
-
-  // 檢查是否已登入並自動設定暱稱
-  autoSetUsernameFromLogin()
-
-  // 模擬線上用戶數變化
-  const interval = setInterval(() => {
-    onlineUsers.value = Math.max(1, onlineUsers.value + (Math.random() > 0.5 ? 1 : -1))
-  }, 10000)
-
-  onBeforeUnmount(() => {
-    clearInterval(interval)
+const formatTime = (date) => {
+  return date.toLocaleTimeString('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
   })
-})
+}
 
-// 自動從登入資訊設定暱稱
-const autoSetUsernameFromLogin = () => {
-  let currentUser = null
-
-  // 優先檢查 Amplify 登入狀態
-  if (amplifyAuth.isConfigured()) {
-    currentUser = amplifyAuth.getCurrentUser()
-  }
-
-  // 如果沒有 Amplify 用戶，檢查 Cognito
-  if (!currentUser) {
-    currentUser = cognitoAuth.getCurrentUser()
-  }
-
-  if (currentUser) {
-    // 從用戶資訊中提取暱稱
-    let displayName =
-      currentUser.name ||
-      currentUser.username ||
-      (currentUser.email ? currentUser.email.split('@')[0] : null)
-
-    if (displayName) {
-      username.value = displayName
-      tempUsername.value = displayName
-      // 發送歡迎訊息
-      addSystemMessage(`${displayName} 已自動加入聊天室`)
-      onlineUsers.value++
-    }
+const scrollToBottom = async () => {
+  await nextTick()
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
 }
 </script>
 
 <style scoped>
-.chat-room {
-  max-width: 800px;
-  margin: 0 auto;
-  height: 600px;
+.ai-agent-container {
   display: flex;
   flex-direction: column;
-  background: white;
+  height: 100vh;
+  max-height: 800px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
 
-.chat-header {
-  background: #fa8500;
+.ai-header {
+  background: linear-gradient(135deg, #fa8500 0%, #e07600 100%);
   color: white;
   padding: 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 15px;
 }
 
-.chat-header h2 {
-  margin: 0;
+.ai-avatar {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.ai-icon {
   font-size: 24px;
 }
 
-.online-users {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
+.ai-info h2 {
+  margin: 0 0 5px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
-.online-indicator {
-  width: 8px;
-  height: 8px;
-  background: #60c41d;
-  border-radius: 50%;
+.ai-status {
+  opacity: 0.9;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.ai-status.thinking {
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+  0% {
+    opacity: 0.9;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0.9;
   }
 }
 
@@ -299,165 +717,900 @@ const autoSetUsernameFromLogin = () => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: #f8fafc;
+  background: #ffffff;
+}
+
+.welcome-message .message {
+  border: none;
+  color: #2c3e50;
+}
+
+.welcome-message h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.3rem;
+}
+
+.welcome-message p {
+  margin: 0 0 20px 0;
+  line-height: 1.6;
+}
+
+.example-prompts h4 {
+  margin: 0 0 15px 0;
+  color: #34495e;
+  font-size: 1.1rem;
+}
+
+.prompt-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.example-btn {
+  background: rgba(250, 133, 0, 0.1);
+  border: 1px solid rgba(250, 133, 0, 0.3);
+  border-radius: 20px;
+  padding: 10px 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  color: #d68910;
+}
+
+.example-btn:hover {
+  background: rgba(250, 133, 0, 0.2);
+  border-color: #fa8500;
+  box-shadow: 0 4px 15px rgba(250, 133, 0, 0.2);
+  transform: translateY(-2px);
 }
 
 .message {
-  margin-bottom: 16px;
-  max-width: 70%;
+  margin-bottom: 20px;
+  animation: slideIn 0.3s ease;
 }
 
-.message.own-message {
-  margin-left: auto;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.message-header {
+.user-message {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+}
+
+.user-message .message-content {
+  background: linear-gradient(135deg, #fa8500 0%, #e07600 100%);
+  color: white;
+  border-radius: 20px 20px 5px 20px;
+  padding: 15px 20px;
+  max-width: 70%;
+  box-shadow: 0 4px 15px rgba(250, 133, 0, 0.3);
+}
+
+.ai-message {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ai-message .message-content {
+  background: #e8f6f9;
+  border: 1px solid #e9ecef;
+  border-radius: 20px 20px 20px 5px;
+  padding: 20px;
+  max-width: 85%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mood-info {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  padding: 10px 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  display: flex;
   align-items: center;
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: #64748b;
+  gap: 10px;
+  border: 1px solid rgba(250, 133, 0, 0.2);
 }
 
-.username {
+.mood-label {
   font-weight: 600;
-  color: #475569;
+  color: #d68910;
 }
 
-.timestamp {
-  color: #94a3b8;
+.mood-value {
+  color: #e67e22;
+  font-weight: 500;
 }
 
-.message-content {
-  background: white;
-  padding: 12px 16px;
-  border-radius: 18px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  word-wrap: break-word;
-  color: #475569;
+/* 服務狀態信息樣式 */
+.service-info {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  border: 1px solid rgba(250, 133, 0, 0.2);
 }
 
-.own-message .message-content {
-  background: #ffffff;
-  color: #475569;
-  border: 2px solid #f7dba2;
+.service-label {
+  font-weight: 600;
+  color: #d68910;
 }
 
-.no-messages {
-  text-align: center;
-  color: #94a3b8;
-  padding: 40px;
+.service-value {
+  color: #ffffff;
+  border: 1px solid rgb(255 255 255);
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.service-value.bedrock {
+  background: #ef7e03;
+  color: white;
+}
+
+.service-value.local {
+  background: #ef7e03;
+  color: white;
+}
+
+.ai-response {
+  line-height: 1.7;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+}
+
+.analyzing-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  padding: 15px;
+  border-radius: 10px;
+  color: #d68910;
   font-style: italic;
 }
 
-.chat-input {
-  border-top: 1px solid #e2e8f0;
+.analyzing-icon {
+  font-size: 1.2rem;
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.no-recommendations {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 1px solid #f6c23e;
+  border-radius: 12px;
   padding: 20px;
-  background: white;
+  color: #856404;
 }
 
-.username-input,
-.message-input {
+.no-rec-info {
+  text-align: center;
+}
+
+.no-rec-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.no-rec-info p {
+  margin: 0 0 15px 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.suggestion-tips {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.3);
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.suggestion-tips strong {
+  color: #d68910;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.suggestion-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.suggestion-tips li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+.recommendations h4 {
+  color: #fa8500;
+  margin: 0 0 15px 0;
+  font-size: 2.2rem;
+}
+
+.recommendation-list {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.username-input input,
-.message-input input {
-  flex: 1;
-  padding: 12px 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 25px;
-  outline: none;
-  font-size: 14px;
-  transition: border-color 0.2s;
+.recommendation-item {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-radius: 10px;
+  padding: 10px 15px;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  border: 1px solid rgba(250, 133, 0, 0.2);
+  transition: all 0.3s ease;
 }
 
-.username-input input:focus,
-.message-input input:focus {
-  border-color: #ecab29;
+.recommendation-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(250, 133, 0, 0.2);
 }
 
-.username-input button,
-.message-input button {
-  padding: 12px 24px;
+.rec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.rec-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.rec-category {
+  background: rgba(255, 255, 255, 0.9);
+  color: #fa8500;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.rec-price {
+  font-weight: 600;
+  color: #d68910;
+}
+
+.rec-description {
+  margin-bottom: 8px;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.rec-reason {
+  margin-bottom: 15px;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.rec-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fav-btn {
+  background: rgba(255, 255, 255, 0.95);
+  color: #fa8500;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.fav-btn:hover:not(:disabled) {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.fav-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.match-score {
+  font-weight: 600;
+  opacity: 0.95;
+  color: #d68910;
+}
+
+.error-message {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+  color: #c0392b;
+  padding: 15px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.message-time {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  text-align: right;
+  margin-top: 5px;
+}
+
+.loading-message {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.loading-indicator {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
   background: #fa8500;
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.chat-input {
+  background: white;
+  border-top: 1px solid #e9ecef;
+  padding: 20px;
+}
+
+.input-container {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.input-container textarea {
+  flex: 1;
+  resize: none;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 15px;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  min-height: 60px;
+}
+
+.input-container textarea:focus {
+  outline: none;
+  border-color: #fa8500;
+}
+
+.input-container textarea:disabled {
+  background: #f8f9fa;
+  opacity: 0.7;
+}
+
+.send-btn {
+  background: linear-gradient(135deg, #fa8500 0%, #e07600 100%);
   color: white;
   border: none;
-  border-radius: 25px;
+  padding: 15px 25px;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
-.change-username-btn {
-  padding: 12px 16px !important;
-  background: #6b7280 !important;
-  margin-left: 8px;
-  font-size: 12px !important;
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(250, 133, 0, 0.4);
 }
 
-.change-username-btn:hover {
-  background: #4b5563 !important;
-}
-
-.username-input button:hover,
-.message-input button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(234, 172, 102, 0.4);
-}
-
-.username-input button:disabled,
-.message-input button:disabled {
+.send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
 }
 
-/* 自定義滾動條 */
-.chat-messages::-webkit-scrollbar {
-  width: 6px;
+.input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: #7f8c8d;
 }
 
-.chat-messages::-webkit-scrollbar-track {
-  background: #f1f5f9;
+.quick-actions {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 
-.chat-messages::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+.action-btn {
+  background: white;
+  border: 1px solid #dee2e6;
+  color: #495057;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
 }
 
-.chat-messages::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.action-btn:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+/* 模態窗口樣式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #fa8500 0%, #e07600 100%);
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 載入和錯誤狀態 */
+.loading-state,
+.error-state,
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-spinner {
+  font-size: 2rem;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-state p {
+  color: #e74c3c;
+  margin-bottom: 15px;
+}
+
+.retry-btn {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  color: #7f8c8d;
+}
+
+.empty-state .tip {
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* 歷史記錄樣式 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.history-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  transition: transform 0.2s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.history-time {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.history-rating {
+  font-size: 0.9rem;
+  color: #f39c12;
+}
+
+.history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.user-query,
+.mood-detected,
+.ai-response {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.user-query strong,
+.mood-detected strong,
+.ai-response strong {
+  color: #495057;
+}
+
+.recommendations {
+  margin-top: 10px;
+}
+
+.rec-list {
+  background: white;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 8px;
+}
+
+.rec-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.rec-item:last-child {
+  border-bottom: none;
+}
+
+.history-actions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+}
+
+.rating-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.star-btn:hover {
+  background: rgba(243, 156, 18, 0.1);
+}
+
+/* 收藏列表樣式 */
+.favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.favorite-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  transition: transform 0.2s ease;
+}
+
+.favorite-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.favorite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.drink-info h4 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.category {
+  background: #fa8500;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  margin-right: 10px;
+}
+
+.price {
+  background: #00b894;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.remove-btn {
+  background: #e74c3c;
+  border: none;
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.remove-btn:hover {
+  background: #c0392b;
+}
+
+.favorite-description,
+.favorite-reason,
+.favorite-notes {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  color: #495057;
+}
+
+.favorite-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.match-score {
+  background: #fa8500;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
 }
 
 /* 響應式設計 */
 @media (max-width: 768px) {
-  .chat-room {
-    height: calc(100vh - 40px);
-    margin: 20px;
-    border-radius: 8px;
+  .ai-agent-container {
+    height: 100vh;
+    border-radius: 0;
   }
 
-  .chat-header {
-    padding: 16px;
+  .ai-header {
+    padding: 15px;
   }
 
-  .chat-header h2 {
-    font-size: 20px;
+  .ai-info h2 {
+    font-size: 1.3rem;
   }
 
-  .message {
-    max-width: 85%;
+  .chat-messages {
+    padding: 15px;
   }
 
-  .chat-input {
-    padding: 16px;
+  .user-message .message-content,
+  .ai-message .message-content {
+    max-width: 90%;
+  }
+
+  .recommendation-item {
+    padding: 15px;
+  }
+
+  .rec-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .rec-actions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .input-container {
+    flex-direction: column;
+  }
+
+  .send-btn {
+    align-self: flex-end;
+  }
+
+  .quick-actions {
+    flex-wrap: wrap;
+  }
+
+  /* 模態窗口響應式 */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-content {
+    max-height: 90vh;
+  }
+
+  .modal-header {
+    padding: 15px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .modal-body {
+    padding: 15px;
+  }
+
+  .history-item,
+  .favorite-item {
+    padding: 15px;
+  }
+
+  .history-header,
+  .favorite-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .favorite-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .rating-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 </style>

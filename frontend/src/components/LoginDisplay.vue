@@ -7,20 +7,8 @@
 
       <div class="login-content">
         <div class="login-options">
-          <div class="login-option" v-if="amplifyAuth.isConfigured()">
-            <h4>AWS Amplify 登入</h4>
-            <p>使用 AWS Amplify 服務進行安全登入，並支援 S3 檔案上傳</p>
-            <button @click="loginWithAmplify" class="btn btn-primary btn-block">
-              使用 Amplify 登入
-            </button>
-          </div>
-
-          <div
-            class="login-option"
-            v-if="cognitoAuth.isConfigured() && !amplifyAuth.isConfigured()"
-          >
+          <div class="login-option" v-if="cognitoAuth.isConfigured()">
             <h4>AWS Cognito 登入</h4>
-            <p>使用 AWS Cognito 服務進行安全登入</p>
             <button @click="loginWithCognito" class="btn btn-primary btn-block">
               使用 Cognito 登入
             </button>
@@ -67,16 +55,12 @@
             </form>
           </div>
 
-          <div
-            class="login-option"
-            v-if="!cognitoAuth.isConfigured() && !amplifyAuth.isConfigured()"
-          >
+          <div class="login-option" v-if="!cognitoAuth.isConfigured()">
             <h4>AWS 服務設定</h4>
             <small class="help-text">
               請在 .env.local 中設定：<br />
               - VITE_COGNITO_DOMAIN<br />
               - VITE_COGNITO_CLIENT_ID<br />
-              - VITE_COGNITO_USER_POOL_ID (Amplify)<br />
               - VITE_S3_BUCKET_NAME<br />
               - VITE_COGNITO_REDIRECT_URI (可選)
             </small>
@@ -89,10 +73,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import cognitoAuth from '../utils/cognito.js'
-import amplifyAuth from '../utils/amplify.js'
+import authStore from '../utils/auth.js'
 
 const router = useRouter()
 
@@ -101,72 +85,65 @@ const loginForm = ref({
   password: '',
 })
 
-// 在組件掛載時檢查登入狀態和處理 Cognito/Amplify 回調
+// 在組件掛載時檢查登入狀態和處理 Cognito 回調
 onMounted(async () => {
-  // 檢查 URL 中是否有 OAuth 錯誤
-  const urlParams = new URLSearchParams(window.location.search)
-  const oauthError = urlParams.get('error')
-  const errorDescription = urlParams.get('error_description')
+  try {
+    // Debug information
+    console.log('LoginDisplay mounted, checking environment...')
+    console.log('Cognito configured:', cognitoAuth.isConfigured())
 
-  if (oauthError) {
-    console.error('OAuth 錯誤:', { error: oauthError, description: errorDescription })
+    // 檢查 URL 中是否有 OAuth 錯誤
+    const urlParams = new URLSearchParams(window.location.search)
+    const oauthError = urlParams.get('error')
+    const errorDescription = urlParams.get('error_description')
 
-    let errorMessage = `OAuth 登入錯誤：${oauthError}\n\n`
+    if (oauthError) {
+      console.error('OAuth 錯誤:', { error: oauthError, description: errorDescription })
 
-    if (oauthError === 'invalid_scope') {
-      errorMessage += `Scope 設定錯誤\n\n解決方法：\n1. 檢查 AWS Cognito 用戶池應用程式客戶端設定\n2. 確認已啟用以下 OAuth scope：\n   - email\n   - openid\n   - profile\n3. 確認應用程式客戶端的 OAuth 流程設定正確`
-    } else if (oauthError === 'redirect_mismatch') {
-      errorMessage += `重定向 URL 不匹配\n\n解決方法：\n1. 在 Cognito 應用程式客戶端設定中\n2. 將以下 URL 添加到允許的回調 URL：\n   ${window.location.origin}\n3. 將以下 URL 添加到允許的登出 URL：\n   ${window.location.origin}`
-    } else {
-      errorMessage += errorDescription || '未知錯誤'
-    }
+      let errorMessage = `OAuth 登入錯誤：${oauthError}\n\n`
 
-    alert(errorMessage)
+      if (oauthError === 'invalid_scope') {
+        errorMessage += `Scope 設定錯誤\n\n解決方法：\n1. 檢查 AWS Cognito 用戶池應用程式客戶端設定\n2. 確認已啟用以下 OAuth scope：\n   - email\n   - openid\n   - profile\n3. 確認應用程式客戶端的 OAuth 流程設定正確`
+      } else if (oauthError === 'redirect_mismatch') {
+        errorMessage += `重定向 URL 不匹配\n\n解決方法：\n1. 在 Cognito 應用程式客戶端設定中\n2. 將以下 URL 添加到允許的回調 URL：\n   ${window.location.origin}\n3. 將以下 URL 添加到允許的登出 URL：\n   ${window.location.origin}`
+      } else {
+        errorMessage += errorDescription || '未知錯誤'
+      }
 
-    // 清除 URL 中的錯誤參數
-    if (window.history && window.history.replaceState) {
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-    return
-  }
+      alert(errorMessage)
 
-  // 優先檢查 Amplify 回調
-  if (amplifyAuth.isConfigured()) {
-    const amplifyResult = await amplifyAuth.handleLoginCallback()
-    if (amplifyResult && amplifyResult.success) {
-      console.log(amplifyResult.message)
-      alert(amplifyResult.message)
-      // 登入成功後返回首頁
-      router.push('/')
+      // 清除 URL 中的錯誤參數
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
       return
     }
-  }
 
-  // 檢查是否有 Cognito 回調
-  const loginResult = await cognitoAuth.handleLoginCallback()
-  if (loginResult && loginResult.success) {
-    console.log(loginResult.message)
-    alert(loginResult.message)
-    // 登入成功後返回首頁
-    router.push('/')
+    // 檢查是否有 Cognito 回調
+    const loginResult = await cognitoAuth.handleLoginCallback()
+    if (loginResult) {
+      if (loginResult.success) {
+        console.log(loginResult.message)
+        alert(loginResult.message)
+
+        // 更新用戶狀態
+        authStore.setUser(loginResult.user)
+
+        // 登入成功後返回之前的頁面或首頁
+        const redirectPath = sessionStorage.getItem('preLoginPath') || '/'
+        sessionStorage.removeItem('preLoginPath')
+        router.push(redirectPath)
+      } else {
+        // 登入處理失敗
+        console.error('Cognito 登入處理失敗:', loginResult.error)
+        alert(loginResult.message || '登入處理失敗，請重試')
+      }
+    }
+  } catch (err) {
+    console.error('LoginDisplay mounted error:', err)
+    alert(`載入錯誤：${err.message}`)
   }
 })
-
-// 使用 Amplify 登入
-const loginWithAmplify = async () => {
-  try {
-    if (!amplifyAuth.isConfigured()) {
-      alert('Amplify 未正確設定，請檢查環境變數')
-      return
-    }
-
-    console.log('重定向至 Amplify 登入頁面')
-    await amplifyAuth.signInWithHostedUI()
-  } catch (error) {
-    console.error('Amplify 登入錯誤:', error)
-    alert(`登入失敗：${error.message}`)
-  }
-}
 
 // 使用 Cognito 登入
 const loginWithCognito = async () => {
@@ -189,6 +166,9 @@ const loginWithCognito = async () => {
     const loginUrl = cognitoAuth.getLoginUrl()
     console.log('登入 URL:', loginUrl)
 
+    // 保存重定向前的頁面，用於登入成功後返回
+    sessionStorage.setItem('preLoginPath', window.location.pathname)
+
     window.location.href = loginUrl
   } catch (error) {
     console.error('Cognito 登入錯誤:', error)
@@ -197,23 +177,24 @@ const loginWithCognito = async () => {
     let errorMessage = `登入失敗：${error.message}\n\n`
 
     if (error.message && error.message.includes('redirect_mismatch')) {
-      errorMessage += `重定向 URL 不匹配\n\n請檢查：\n1. AWS Cognito 用戶池中的應用程式客戶端設定\n2. 允許的回調 URL 是否包含：${window.location.origin}\n3. 允許的登出 URL 是否包含：${window.location.origin}`
-    } else if (window.location.search.includes('error=invalid_scope')) {
-      errorMessage += `OAuth scope 錯誤\n\n請檢查：\n1. Cognito 用戶池應用程式客戶端的 OAuth 設定\n2. 確認已啟用 'email', 'openid', 'profile' scope\n3. 確認應用程式客戶端類型設定正確`
+      errorMessage += `重定向 URL 不匹配\n\n請檢查：\n1. AWS Cognito 用戶池中的應用程式客戶端設定\n2. 允許的回調 URL 是否包含：${window.location.origin}/login\n3. 允許的登出 URL 是否包含：${window.location.origin}/login`
+    } else if (error.message && error.message.includes('invalid_scope')) {
+      errorMessage += `OAuth scope 錯誤\n\n請檢查：\n1. Cognito 用戶池應用程式客戶端的 OAuth 設定\n2. 確認已啟用 'openid' scope\n3. 確認應用程式客戶端類型設定正確\n4. 確認已啟用 OAuth 流程`
+    } else if (error.message && error.message.includes('未正確設定')) {
+      errorMessage += `環境變數未設定\n\n請確保以下環境變數已正確設定：\n- VITE_COGNITO_DOMAIN: 您的 Cognito 網域\n- VITE_COGNITO_CLIENT_ID: 應用程式客戶端 ID`
     } else {
-      errorMessage += `建議檢查：\n1. 環境變數設定是否正確\n2. Cognito 用戶池設定\n3. 網路連線\n4. OAuth 設定`
+      errorMessage += `建議檢查：\n1. 環境變數設定是否正確\n2. Cognito 用戶池設定\n3. 網路連線\n4. OAuth 設定\n5. 用戶池應用程式客戶端配置`
     }
 
     alert(errorMessage)
   }
 }
 
-// 立即註冊處理
+// 立即登入處理
 const handleLocalLogin = async () => {
   try {
-    // 這裡可以添加立即註冊邏輯
-    // 例如調用後端 API 進行驗證
-    console.log('立即註冊:', loginForm.value)
+    // 這裡可以添加與後端 API 的驗證邏輯
+    console.log('立即登入:', loginForm.value)
 
     // 模擬登入成功
     const mockUser = {
@@ -223,13 +204,20 @@ const handleLocalLogin = async () => {
       loginTime: new Date().toISOString(),
     }
 
+    // 保存到 Cognito 狀態管理（複用現有邏輯）
     cognitoAuth.setCurrentUser(mockUser)
 
+    // 更新全局狀態
+    authStore.setUser(mockUser)
+
     alert(`登入成功！歡迎回來，${mockUser.name}`)
-    // 登入成功後返回首頁
-    router.push('/')
+
+    // 登入成功後返回之前的頁面或首頁
+    const redirectPath = sessionStorage.getItem('preLoginPath') || '/'
+    sessionStorage.removeItem('preLoginPath')
+    router.push(redirectPath)
   } catch (error) {
-    console.error('立即註冊錯誤:', error)
+    console.error('立即登入錯誤:', error)
     alert(`登入失敗：${error.message}`)
   }
 }
@@ -387,12 +375,18 @@ const handleForgotPassword = () => {
 }
 
 .btn-block {
-  width: 125px;
+  width: fit-content;
 }
 
 .btn-primary {
-  background: #fa8500;
-  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 20px 0px 10px 0px;
+  height: 40px;
+  width: 100%;
+  color: #fff;
+  background-color: #337ab7;
+  border-color: #2e6da4;
 }
 
 .btn-primary:hover {
