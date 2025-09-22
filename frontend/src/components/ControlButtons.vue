@@ -17,6 +17,18 @@
         </button>
       </div>
       <div class="col-xs-6 col-lg-6 col-md-6">
+        <button id="uploadButton" @click="handleFileUpload" class="btn btn-success">
+          上傳檔案
+        </button>
+        <input
+          type="file"
+          ref="fileInput"
+          @change="onFileSelected"
+          style="display: none"
+          accept=".zip"
+        />
+      </div>
+      <div class="col-xs-6 col-lg-6 col-md-6">
         <button
           id="cognitoLoginButton"
           @click="handleCognitoLogin"
@@ -38,6 +50,8 @@ import amplifyAuth from '../utils/amplify.js'
 import authStore from '../utils/auth.js'
 
 const router = useRouter()
+const fileInput = ref(null)
+const uploadedFiles = ref([]) // 用於儲存上傳的檔案記錄
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
 
@@ -152,6 +166,207 @@ const handleCognitoLogin = async () => {
     alert(`操作失敗：${error.message}`)
   }
 }
+
+// 生成英文大小寫數字 6 位碼的函數
+const generateRandomHash = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+// 格式化檔案名稱以符合 S3 安全上傳要求
+const formatSafeFileName = (fileName) => {
+  // 移除或替換不安全的字符
+  return fileName
+    .replace(/[^a-zA-Z0-9.-]/g, '_') // 替換特殊字符為下劃線
+    .replace(/_{2,}/g, '_') // 將多個連續下劃線替換為單個
+    .replace(/^_|_$/g, '') // 移除開頭和結尾的下劃線
+    .toLowerCase() // 轉為小寫
+}
+
+// 生成帶時間戳的唯一檔案名
+const generateUniqueFileName = (originalName) => {
+  const timestamp = Date.now()
+  const hash = generateRandomHash()
+  const safeName = formatSafeFileName(originalName)
+  return `${hash}-${timestamp}-${safeName}`
+}
+
+const handleFileUpload = () => {
+  fileInput.value.click()
+}
+
+const onFileSelected = async (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    console.log('選擇的檔案:', file.name)
+    const eventSlug = 'NHWgimDF'
+    const hash = generateRandomHash()
+    // try {
+    //   // 優先使用 Amplify Storage (如果已登入且配置正確)
+    //   if (
+    //     amplifyAuth.isConfigured() &&
+    //     isLoggedIn.value &&
+    //     currentUser.value?.loginType === 'amplify'
+    //   ) {
+    //     const timestamp = new Date().getTime()
+    //     const s3Key = `uploads/${currentUser.value.sub}/${timestamp}-${file.name}`
+    //     const result = await amplifyAuth.uploadToS3(file, s3Key)
+    //     if (result.success) {
+    //       const uploadRecord = {
+    //         fileName: file.name,
+    //         s3Key: result.s3Key,
+    //         s3Url: result.s3Url,
+    //         uploadTime: new Date().toISOString(),
+    //         fileSize: file.size,
+    //         fileType: file.type,
+    //         uploadMethod: 'amplify',
+    //       }
+    //       uploadedFiles.value.push(uploadRecord)
+    //       console.log('Amplify 上傳成功:', uploadRecord)
+    //       alert(`檔案上傳成功！\n檔案名稱: ${file.name}\n使用 Amplify Storage 上傳`)
+    //       return
+    //     }
+    //   }
+    //   // 如果 Amplify 不可用，回退到原有邏輯
+    //   await uploadWithLegacyMethod(file)
+    // } catch (error) {
+    //   console.error('檔案上傳錯誤:', error)
+    //   alert(
+    //     `檔案上傳失敗: ${error.message}\n\n建議:\n1. 確認已使用 Amplify 登入\n2. 檢查 S3 權限設定\n3. 檢查環境變數配置`,
+    //   )
+    // }
+
+    try {
+      //使用Cognito上傳 [成功]
+      const timestamp = new Date().getTime()
+      const s3Key = `public/temp-template/pending/${eventSlug}/${hash}-${timestamp}.${file.name.split('.').pop()}`
+      const result = await cognitoAuth.uploadToS3(file, s3Key)
+      if (result.success) {
+        const uploadRecord = {
+          fileName: file.name,
+          s3Key: result.s3Key,
+          s3Url: result.s3Url,
+          uploadTime: new Date().toISOString(),
+          fileSize: file.size,
+          fileType: file.type,
+          uploadMethod: 'cognito',
+        }
+        uploadedFiles.value.push(uploadRecord)
+        console.log('Cognito 上傳成功:', uploadRecord)
+        alert(`檔案上傳成功！\n檔案名稱: ${file.name}\n使用 Cognito 上傳`)
+        return
+      }
+    } catch (error) {
+      console.error('檔案上傳錯誤:', error)
+      alert(
+        `檔案上傳失敗: ${error.message}\n\n建議:\n1. 確認已使用 Cognito 登入\n2. 檢查 S3 權限設定\n3. 檢查環境變數配置`,
+      )
+    }
+  }
+}
+
+// 原有的上傳方法作為後備
+// const uploadWithLegacyMethod = async (file) => {
+//   // 生成檔案的 S3 鍵名 (路徑)
+//   const timestamp = new Date().getTime()
+//   const s3Key = `uploads/${timestamp}-${file.name}`
+//   const bucketName = import.meta.env.VITE_S3_BUCKET_NAME
+//   const region = import.meta.env.VITE_AWS_REGION || 'us-east-1'
+
+//   // 方法1: 使用 FormData 直接上傳到 S3 (需要正確的 CORS 設定)
+//   const formData = new FormData()
+//   formData.append('key', s3Key)
+//   formData.append('Content-Type', file.type || 'application/octet-stream')
+//   formData.append('file', file)
+
+//   // 構建 S3 端點 URL
+//   const s3Endpoint = `https://${bucketName}.s3.${region}.amazonaws.com/`
+
+//   try {
+//     const response = await fetch(s3Endpoint, {
+//       method: 'POST',
+//       body: formData,
+//       mode: 'cors',
+//     })
+
+//     if (response.ok) {
+//       // 構建 S3 URL
+//       const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${s3Key}`
+
+//       // 儲存上傳記錄
+//       const uploadRecord = {
+//         fileName: file.name,
+//         s3Key: s3Key,
+//         s3Url: s3Url,
+//         uploadTime: new Date().toISOString(),
+//         fileSize: file.size,
+//         fileType: file.type,
+//         uploadMethod: 'direct',
+//       }
+
+//       uploadedFiles.value.push(uploadRecord)
+
+//       console.log('檔案上傳成功:', uploadRecord)
+//       alert(`檔案上傳成功！\n檔案名稱: ${file.name}\nS3 位置: ${s3Url}`)
+//     } else {
+//       throw new Error(`上傳失敗: ${response.status} ${response.statusText}`)
+//     }
+//   } catch (fetchError) {
+//     console.warn('直接上傳失敗，嘗試後端代理上傳:', fetchError)
+
+//     // 方法2: 通過後端 API 上傳 (推薦的安全方法)
+//     await uploadViaBackend(file, s3Key)
+//   }
+// }
+
+// 通過後端 API 上傳檔案的方法
+// const uploadViaBackend = async (file, s3Key) => {
+//   const formData = new FormData()
+//   console.log('Uploading via backend with file:', file)
+//   formData.append('file', file)
+//   console.log('Uploading via backend with s3Key:', s3Key)
+//   formData.append('s3Key', s3Key)
+
+//   // 假設後端有一個上傳 API 端點
+//   const backendUrl = 'http://localhost:8088/api/upload' // 請根據您的後端 URL 調整
+
+//   try {
+//     const response = await fetch(backendUrl, {
+//       method: 'POST',
+//       body: formData,
+//     })
+
+//     if (response.ok) {
+//       const result = await response.json()
+
+//       // 儲存上傳記錄
+//       const uploadRecord = {
+//         fileName: file.name,
+//         s3Key: s3Key,
+//         s3Url:
+//           result.s3Url ||
+//           `https://${import.meta.env.VITE_S3_BUCKET_NAME}.s3.${import.meta.env.VITE_AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`,
+//         uploadTime: new Date().toISOString(),
+//         fileSize: file.size,
+//         fileType: file.type,
+//       }
+
+//       uploadedFiles.value.push(uploadRecord)
+
+//       console.log('後端上傳成功:', uploadRecord)
+//       alert(`檔案上傳成功！\n檔案名稱: ${file.name}\nS3 位置: ${uploadRecord.s3Url}`)
+//     } else {
+//       throw new Error(`後端上傳失敗: ${response.status}`)
+//     }
+//   } catch (backendError) {
+//     console.error('後端上傳失敗:', backendError)
+//     throw new Error('所有上傳方法都失敗了，請檢查設定或聯繫管理員')
+//   }
+// }
 </script>
 
 <style scoped>

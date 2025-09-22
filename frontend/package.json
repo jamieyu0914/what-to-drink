@@ -17,7 +17,9 @@
   "dependencies": {
     "@aws-amplify/auth": "^6.15.1",
     "@aws-amplify/storage": "^6.9.6",
+    "@aws-sdk/client-cognito-identity": "^3.893.0",
     "@aws-sdk/client-s3": "^3.887.0",
+    "@aws-sdk/credential-provider-cognito-identity": "^3.893.0",
     "aws-amplify": "^6.15.6",
     "buffer": "^6.0.3",
     "util": "^0.12.5",

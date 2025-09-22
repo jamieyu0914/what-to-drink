@@ -71,8 +71,8 @@ export class CognitoAuth {
       throw new Error('Cognito 未正確設定')
     }
 
-    // 使用空格分隔的 scope 參數，包含更多權限以獲取用戶信息
-    const scope = 'openid'
+    // 使用空格分隔的 scope 參數，包含更多權限以獲取用戶信息和 refresh token
+    const scope = 'openid email profile aws.cognito.signin.user.admin'
     const loginUrl = `https://${this.domain}/login?client_id=${this.clientId}&response_type=code&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(this.redirectUri)}`
     console.log('Cognito Login URL:', loginUrl)
     console.log('Redirect URI:', this.redirectUri)
@@ -410,8 +410,216 @@ export class CognitoAuth {
     return true
   }
 
+  // 使用 refresh token 刷新 access token
+  async refreshToken() {
+    const user = this.getCurrentUser()
+    if (!user || !user.tokens || !user.tokens.refresh_token) {
+      throw new Error('沒有可用的 refresh token')
+    }
+
+    if (!this.isConfigured()) {
+      throw new Error('Cognito 未正確設定')
+    }
+
+    const tokenUrl = `https://${this.domain}/oauth2/token`
+
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: this.clientId,
+      refresh_token: user.tokens.refresh_token,
+    })
+
+    try {
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error('Token 刷新失敗:', errorData)
+        throw new Error(`Token 刷新失敗: ${response.status} ${response.statusText}`)
+      }
+
+      const tokenData = await response.json()
+      console.log('成功刷新 token')
+
+      // 更新用戶的 token 信息
+      const updatedUser = {
+        ...user,
+        tokens: {
+          ...user.tokens,
+          access_token: tokenData.access_token,
+          id_token: tokenData.id_token || user.tokens.id_token,
+          expires_in: tokenData.expires_in,
+          // 保留原有的 refresh_token（除非返回了新的）
+          refresh_token: tokenData.refresh_token || user.tokens.refresh_token,
+        },
+        loginTime: new Date().toISOString(), // 更新登入時間
+      }
+
+      this.setCurrentUser(updatedUser)
+      return tokenData
+    } catch (error) {
+      console.error('刷新 token 錯誤:', error)
+      // 如果刷新失敗，清除用戶數據
+      this.clearCurrentUser()
+      throw error
+    }
+  }
+
+  // 獲取有效的 access token（如果過期則自動刷新）
+  async getValidAccessToken() {
+    let user = this.getCurrentUser()
+    if (!user || !user.tokens) {
+      throw new Error('用戶未登入')
+    }
+
+    // 檢查 token 是否即將過期（提前 5 分鐘刷新）
+    const REFRESH_BUFFER = 5 * 60 * 1000 // 5 分鐘
+    const loginTime = new Date(user.loginTime).getTime()
+    const expiresIn = (user.tokens.expires_in || 3600) * 1000 // 默認 1 小時
+    const now = Date.now()
+    const timeUntilExpiry = loginTime + expiresIn - now
+
+    if (timeUntilExpiry <= REFRESH_BUFFER) {
+      console.log('Token 即將過期，嘗試刷新...')
+      try {
+        await this.refreshToken()
+        user = this.getCurrentUser() // 重新獲取更新後的用戶信息
+      } catch (error) {
+        console.error('自動刷新 token 失敗:', error)
+        throw new Error('Token 已過期且無法刷新，請重新登入')
+      }
+    }
+
+    if (!user || !user.tokens || !user.tokens.access_token) {
+      throw new Error('無法獲取有效的 access token')
+    }
+
+    return user.tokens.access_token
+  }
+
+  // 上傳檔案到 S3
+  async uploadToS3(file, s3Key) {
+    try {
+      // 獲取有效的 access token（如果過期會自動刷新）
+      const accessToken = await this.getValidAccessToken()
+      const user = this.getCurrentUser()
+
+      if (!user || !user.tokens) {
+        throw new Error('用戶未登入或 token 無效')
+      }
+
+      // 獲取環境變數
+      const bucketName = import.meta.env.VITE_S3_BUCKET_NAME
+      const region = import.meta.env.VITE_AWS_REGION || 'us-east-1'
+
+      if (!bucketName) {
+        throw new Error('S3 bucket 名稱未設置，請檢查 VITE_S3_BUCKET_NAME 環境變數')
+      }
+
+      // 動態導入 AWS SDK
+      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+      const { fromCognitoIdentityPool } = await import(
+        '@aws-sdk/credential-provider-cognito-identity'
+      )
+      const { CognitoIdentityClient } = await import('@aws-sdk/client-cognito-identity')
+
+      // 檢查是否有身份池配置
+      const identityPoolId = import.meta.env.VITE_COGNITO_IDENTITY_POOL_ID
+      let s3Client
+
+      if (identityPoolId) {
+        // 使用 Cognito Identity Pool 進行身份驗證
+        const cognitoIdentityClient = new CognitoIdentityClient({ region })
+
+        const credentials = fromCognitoIdentityPool({
+          client: cognitoIdentityClient,
+          identityPoolId: identityPoolId,
+          logins: {
+            [`cognito-idp.${region}.amazonaws.com/${import.meta.env.VITE_COGNITO_USER_POOL_ID}`]:
+              user.tokens.id_token,
+          },
+        })
+
+        s3Client = new S3Client({
+          region,
+          credentials,
+        })
+      } else {
+        // 檢查是否有 AWS 憑證配置
+        const accessKeyId = import.meta.env.VITE_AWS_ACCESS_KEY_ID
+        const secretAccessKey = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY
+
+        if (!accessKeyId || !secretAccessKey) {
+          throw new Error(
+            'AWS 憑證未設置。請設置 VITE_COGNITO_IDENTITY_POOL_ID 或 VITE_AWS_ACCESS_KEY_ID/VITE_AWS_SECRET_ACCESS_KEY',
+          )
+        }
+
+        s3Client = new S3Client({
+          region,
+          credentials: {
+            accessKeyId,
+            secretAccessKey,
+          },
+        })
+      }
+
+      // 準備檔案內容
+      const fileBuffer = await file.arrayBuffer()
+
+      // 創建上傳命令
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+        Body: new Uint8Array(fileBuffer),
+        ContentType: file.type || 'application/octet-stream',
+        // 添加一些基本的 metadata
+        Metadata: {
+          'uploaded-by': 'cognito-user',
+          'original-name': file.name,
+          'upload-time': new Date().toISOString(),
+        },
+      })
+
+      // 執行上傳
+      const response = await s3Client.send(command)
+
+      if (response) {
+        // 構建 S3 URL
+        const s3Url = `https://${bucketName}.s3.${region}.amazonaws.com/${s3Key}`
+
+        return {
+          success: true,
+          fileName: file.name,
+          s3Key: s3Key,
+          s3Url: s3Url,
+          uploadTime: new Date().toISOString(),
+          fileSize: file.size,
+          fileType: file.type,
+          uploadMethod: 'cognito',
+          message: '檔案上傳成功',
+          etag: response.ETag,
+        }
+      } else {
+        throw new Error('S3 上傳失敗：無回應')
+      }
+    } catch (error) {
+      console.error('S3 上傳錯誤:', error)
+      return {
+        success: false,
+        error: error.message,
+      }
+    }
+  }
+
   // 驗證並清理用戶數據（在應用啟動時調用）
-  validateAndCleanup() {
+  async validateAndCleanup() {
     try {
       const user = this.getCurrentUser()
 
@@ -423,12 +631,15 @@ export class CognitoAuth {
           return false
         }
 
-        // 檢查 token 有效性
-        if (!this.isTokenValid()) {
+        // 嘗試獲取有效的 access token（會自動刷新過期的 token）
+        try {
+          await this.getValidAccessToken()
+          return true
+        } catch (error) {
+          console.log('Token 無效且無法刷新，清除用戶數據:', error.message)
+          this.clearCurrentUser()
           return false
         }
-
-        return true
       }
 
       return false
