@@ -72,8 +72,10 @@ export class CognitoAuth {
     }
 
     // 使用空格分隔的 scope 參數，包含更多權限以獲取用戶信息和 refresh token
-    const scope = 'openid email profile aws.cognito.signin.user.admin'
-    const loginUrl = `https://${this.domain}/login?client_id=${this.clientId}&response_type=code&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(this.redirectUri)}`
+    const scope = 'openid'
+    const loginUrl =
+      `https://${this.domain}/login?client_id=${this.clientId}&response_type=code&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(this.redirectUri)}&` +
+      `state=cognito`
     console.log('Cognito Login URL:', loginUrl)
     console.log('Redirect URI:', this.redirectUri)
     console.log('Scope:', scope)
@@ -123,6 +125,12 @@ export class CognitoAuth {
     return urlParams.get('code')
   }
 
+  // 獲取 state 參數
+  getAuthState() {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('state')
+  }
+
   // 清除 URL 中的查詢參數
   clearUrlParams() {
     if (window.history && window.history.replaceState) {
@@ -134,7 +142,9 @@ export class CognitoAuth {
   async handleLoginCallback() {
     if (this.hasAuthCode()) {
       const code = this.getAuthCode()
+      const state = this.getAuthState()
       console.log('收到 Cognito 授權碼:', code)
+      console.log('收到 state 參數:', state)
 
       try {
         // 使用授權碼換取 token
@@ -161,7 +171,7 @@ export class CognitoAuth {
             return {
               success: true,
               user: userData,
-              message: `登入成功！歡迎回來，${userInfo.name || userInfo.email || '用戶'}`,
+              message: `Cognito 登入成功！歡迎回來，${userInfo.name || userInfo.email || '用戶'}`,
             }
           }
         }

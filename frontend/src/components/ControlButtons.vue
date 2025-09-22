@@ -40,6 +40,22 @@
     </div>
   </div>
   <!-- End of Button Zone -->
+
+  <!-- Modal -->
+  <div v-if="showModal" class="modal-overlay" @click="closeModal">
+    <div class="modal-container" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">{{ modalTitle }}</h3>
+        <button class="modal-close" @click="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-content" v-html="modalContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" @click="closeModal">確定</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -52,8 +68,15 @@ import authStore from '../utils/auth.js'
 const router = useRouter()
 const fileInput = ref(null)
 const uploadedFiles = ref([]) // 用於儲存上傳的檔案記錄
+
+// 使用統一的 authStore 管理登入狀態
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
+
+// Modal 相關狀態
+const showModal = ref(false)
+const modalTitle = ref('')
+const modalContent = ref('')
 
 // 在組件掛載時檢查登入狀態和處理 Cognito/Amplify 回調
 onMounted(async () => {
@@ -61,6 +84,8 @@ onMounted(async () => {
   const urlParams = new URLSearchParams(window.location.search)
   const oauthError = urlParams.get('error')
   const errorDescription = urlParams.get('error_description')
+  const state = urlParams.get('state')
+  console.log('currentUser:', currentUser)
 
   if (oauthError) {
     console.error('OAuth 錯誤:', { error: oauthError, description: errorDescription })
@@ -84,42 +109,50 @@ onMounted(async () => {
     return
   }
 
-  // 優先檢查 Amplify 回調
-  if (amplifyAuth.isConfigured()) {
+  // 優先檢查 Amplify 回調（當 state 不是 'cognito' 時）
+  if (amplifyAuth.isConfigured() && state !== 'cognito') {
     const amplifyResult = await amplifyAuth.handleLoginCallback()
     if (amplifyResult && amplifyResult.success) {
       console.log(amplifyResult.message)
       alert(amplifyResult.message)
-      updateLoginStatus()
+      await initializeAuth()
       return
     }
   }
 
-  // 檢查是否有 Cognito 回調
-  const loginResult = await cognitoAuth.handleLoginCallback()
-  if (loginResult && loginResult.success) {
-    console.log(loginResult.message)
-    alert(loginResult.message)
+  // 檢查是否有 Cognito 回調（當 state 是 'cognito' 或者 Amplify 回調失敗時）
+  if (cognitoAuth.isConfigured() && (state === 'cognito' || !amplifyAuth.isConfigured())) {
+    const loginResult = await cognitoAuth.handleLoginCallback()
+    if (loginResult && loginResult.success) {
+      console.log(loginResult.message)
+      alert(loginResult.message)
+      await initializeAuth()
+      return
+    }
   }
 
-  // 更新登入狀態
-  updateLoginStatus()
+  // 初始化認證狀態
+  await initializeAuth()
 })
 
-// 更新登入狀態
-const updateLoginStatus = async () => {
-  // 優先檢查 Amplify 登入狀態
-  if (amplifyAuth.isConfigured()) {
-    isLoggedIn.value = await amplifyAuth.isLoggedIn()
-    if (isLoggedIn.value) {
-      currentUser.value = await amplifyAuth.getCurrentUser()
-      return
-    }
-  }
+// 初始化認證狀態
+const initializeAuth = async () => {
+  await authStore.initializeAuth()
+  isLoggedIn.value = authStore.isLoggedIn.value
+  currentUser.value = authStore.currentUser.value
+}
 
-  // 檢查 Cognito 登入狀態
-  isLoggedIn.value = cognitoAuth.isLoggedIn()
-  currentUser.value = cognitoAuth.getCurrentUser()
+// Modal 控制函數
+const showSuccessModal = (title, content) => {
+  modalTitle.value = title
+  modalContent.value = content
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  modalTitle.value = ''
+  modalContent.value = ''
 }
 
 const openMenuModal = () => {
@@ -151,10 +184,10 @@ const handleCognitoLogin = async () => {
         `您已登入為：${currentUser.value?.email || '用戶'}\n\n是否要登出？`,
       )
       if (shouldLogout) {
-        // 使用統一的 auth-store 登出方法
+        // 使用統一的 authStore 登出方法
         await authStore.logout(router)
         alert('已登出')
-        updateLoginStatus()
+        await initializeAuth()
       }
       return
     }
@@ -177,88 +210,102 @@ const generateRandomHash = () => {
   return result
 }
 
-// 格式化檔案名稱以符合 S3 安全上傳要求
-const formatSafeFileName = (fileName) => {
-  // 移除或替換不安全的字符
-  return fileName
-    .replace(/[^a-zA-Z0-9.-]/g, '_') // 替換特殊字符為下劃線
-    .replace(/_{2,}/g, '_') // 將多個連續下劃線替換為單個
-    .replace(/^_|_$/g, '') // 移除開頭和結尾的下劃線
-    .toLowerCase() // 轉為小寫
-}
-
 // 生成帶時間戳的唯一檔案名
 const generateUniqueFileName = (originalName) => {
   const timestamp = Date.now()
   const hash = generateRandomHash()
-  const safeName = formatSafeFileName(originalName)
-  return `${hash}-${timestamp}-${safeName}`
+  const extension = originalName.split('.').pop().toLowerCase()
+  return `${hash}-${timestamp}.${extension}`
 }
 
 const handleFileUpload = () => {
   fileInput.value.click()
+  console.log('login state:', isLoggedIn.value)
 }
 
 const onFileSelected = async (event) => {
   const file = event.target.files[0]
   if (file) {
     console.log('選擇的檔案:', file.name)
-    const eventSlug = 'NHWgimDF'
-    const hash = generateRandomHash()
-    // try {
-    //   // 優先使用 Amplify Storage (如果已登入且配置正確)
-    //   if (
-    //     amplifyAuth.isConfigured() &&
-    //     isLoggedIn.value &&
-    //     currentUser.value?.loginType === 'amplify'
-    //   ) {
-    //     const timestamp = new Date().getTime()
-    //     const s3Key = `uploads/${currentUser.value.sub}/${timestamp}-${file.name}`
-    //     const result = await amplifyAuth.uploadToS3(file, s3Key)
-    //     if (result.success) {
-    //       const uploadRecord = {
-    //         fileName: file.name,
-    //         s3Key: result.s3Key,
-    //         s3Url: result.s3Url,
-    //         uploadTime: new Date().toISOString(),
-    //         fileSize: file.size,
-    //         fileType: file.type,
-    //         uploadMethod: 'amplify',
-    //       }
-    //       uploadedFiles.value.push(uploadRecord)
-    //       console.log('Amplify 上傳成功:', uploadRecord)
-    //       alert(`檔案上傳成功！\n檔案名稱: ${file.name}\n使用 Amplify Storage 上傳`)
-    //       return
-    //     }
-    //   }
-    //   // 如果 Amplify 不可用，回退到原有邏輯
-    //   await uploadWithLegacyMethod(file)
-    // } catch (error) {
-    //   console.error('檔案上傳錯誤:', error)
-    //   alert(
-    //     `檔案上傳失敗: ${error.message}\n\n建議:\n1. 確認已使用 Amplify 登入\n2. 檢查 S3 權限設定\n3. 檢查環境變數配置`,
-    //   )
-    // }
+    const eventSlug = import.meta.env.VITE_EVENT_SLUG || 'NHWgimDF'
+    const formatSafeFileName = generateUniqueFileName(file.name)
 
     try {
-      //使用Cognito上傳 [成功]
-      const timestamp = new Date().getTime()
-      const s3Key = `public/temp-template/pending/${eventSlug}/${hash}-${timestamp}.${file.name.split('.').pop()}`
-      const result = await cognitoAuth.uploadToS3(file, s3Key)
-      if (result.success) {
-        const uploadRecord = {
-          fileName: file.name,
-          s3Key: result.s3Key,
-          s3Url: result.s3Url,
-          uploadTime: new Date().toISOString(),
-          fileSize: file.size,
-          fileType: file.type,
-          uploadMethod: 'cognito',
+      // 優先使用 Amplify Storage (如果已登入且配置正確) [成功]
+      if (
+        amplifyAuth.isConfigured() &&
+        isLoggedIn.value &&
+        currentUser.value?.loginType === 'amplify'
+      ) {
+        const s3Key = `temp-template/pending/${eventSlug}/${formatSafeFileName}`
+        const result = await amplifyAuth.uploadToS3(file, s3Key)
+        if (result.success) {
+          const uploadRecord = {
+            fileName: file.name,
+            s3Key: result.s3Key,
+            s3Url: result.s3Url,
+            uploadTime: new Date().toISOString(),
+            fileSize: file.size,
+            fileType: file.type,
+            uploadMethod: 'amplify',
+          }
+          uploadedFiles.value.push(uploadRecord)
+          console.log('Amplify 上傳成功:', uploadRecord)
+          showSuccessModal(
+            '✅ 檔案上傳成功',
+            `<div class="upload-success-content" style="text-align: left;
+    width: max-content;">
+              <p><strong>📄 檔案名稱:</strong> ${file.name}</p>
+              <p><strong>🔑 S3 Key:</strong> ${result.s3Key}</p>
+              <p><strong>🔐 上傳方式:</strong> Amplify Storage 方法</p>
+              <p><strong>📅 上傳時間:</strong> ${new Date().toLocaleString('zh-TW')}</p>
+            </div>`,
+          )
+          return
         }
-        uploadedFiles.value.push(uploadRecord)
-        console.log('Cognito 上傳成功:', uploadRecord)
-        alert(`檔案上傳成功！\n檔案名稱: ${file.name}\n使用 Cognito 上傳`)
-        return
+      }
+      // 如果 Amplify 不可用，回退到原有邏輯
+      // await uploadWithLegacyMethod(file)
+    } catch (error) {
+      console.error('檔案上傳錯誤:', error)
+      alert(
+        `檔案上傳失敗: ${error.message}\n\n建議:\n1. 確認已使用 Amplify 登入\n2. 檢查 S3 權限設定\n3. 檢查環境變數配置`,
+      )
+    }
+
+    try {
+      if (
+        cognitoAuth.isConfigured() &&
+        isLoggedIn.value &&
+        currentUser.value?.loginType === 'cognito'
+      ) {
+        //使用Cognito上傳 [成功]
+        const s3Key = `public/temp-template/pending/${eventSlug}/${formatSafeFileName}`
+        const result = await cognitoAuth.uploadToS3(file, s3Key)
+        if (result.success) {
+          const uploadRecord = {
+            fileName: file.name,
+            s3Key: result.s3Key,
+            s3Url: result.s3Url,
+            uploadTime: new Date().toISOString(),
+            fileSize: file.size,
+            fileType: file.type,
+            uploadMethod: 'cognito',
+          }
+          uploadedFiles.value.push(uploadRecord)
+          console.log('Cognito 上傳成功:', uploadRecord)
+          showSuccessModal(
+            '✅ 檔案上傳成功',
+            `<div class="upload-success-content" style="text-align: left;
+    width: max-content;">
+              <p><strong>📄 檔案名稱:</strong> ${file.name}</p>
+              <p><strong>🔑 S3 Key:</strong> ${result.s3Key}</p>
+              <p><strong>🔐 上傳方式:</strong> Cognito 認證</p>
+              <p><strong>📅 上傳時間:</strong> ${new Date().toLocaleString('zh-TW')}</p>
+            </div>`,
+          )
+          return
+        }
       }
     } catch (error) {
       console.error('檔案上傳錯誤:', error)
@@ -371,4 +418,155 @@ const onFileSelected = async (event) => {
 
 <style scoped>
 /* 原有的按鈕樣式保持不變 */
+
+/* Modal 樣式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 595px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-content {
+  color: #333;
+  line-height: 1.6;
+}
+
+.upload-success-content p {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-left: 4px solid #28a745;
+  border-radius: 4px;
+}
+
+.upload-success-content strong {
+  color: #495057;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #dee2e6;
+}
+
+.modal-footer .btn {
+  min-width: 80px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.modal-footer .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+}
+
+.modal-footer .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 95%;
+    margin: 10px;
+  }
+
+  .modal-header {
+    padding: 15px;
+  }
+
+  .modal-body {
+    padding: 15px;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
+  }
+}
 </style>

@@ -7,6 +7,13 @@
 
       <div class="login-content">
         <div class="login-options">
+          <div class="login-option" v-if="amplifyAuth.isConfigured()">
+            <h4>AWS Amplify 登入</h4>
+            <button @click="loginWithAmplify" class="btn btn-primary btn-block">
+              使用 Amplify 登入
+            </button>
+          </div>
+
           <div class="login-option" v-if="cognitoAuth.isConfigured()">
             <h4>AWS Cognito 登入</h4>
             <button @click="loginWithCognito" class="btn btn-primary btn-block">
@@ -55,13 +62,27 @@
             </form>
           </div>
 
-          <div class="login-option" v-if="!cognitoAuth.isConfigured()">
+          <div
+            class="login-option"
+            v-if="!cognitoAuth.isConfigured() && !amplifyAuth.isConfigured()"
+          >
             <h4>AWS 服務設定</h4>
             <small class="help-text">
               請在 .env.local 中設定：<br />
+              <strong>Cognito 登入需要：</strong><br />
               - VITE_COGNITO_DOMAIN<br />
               - VITE_COGNITO_CLIENT_ID<br />
+              <br />
+              <strong>Amplify 登入需要：</strong><br />
+              - VITE_COGNITO_USER_POOL_ID<br />
+              - VITE_COGNITO_CLIENT_ID<br />
+              - VITE_COGNITO_DOMAIN<br />
+              - VITE_AWS_REGION (可選，預設 us-east-1)<br />
+              <br />
+              <strong>檔案上傳需要：</strong><br />
               - VITE_S3_BUCKET_NAME<br />
+              - VITE_COGNITO_IDENTITY_POOL_ID<br />
+              <br />
               - VITE_COGNITO_REDIRECT_URI (可選)
             </small>
             <p class="text-muted">完成後才能使用 AWS 登入服務</p>
@@ -76,6 +97,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import cognitoAuth from '../utils/cognito.js'
+import amplifyAuth from '../utils/amplify.js'
 import authStore from '../utils/auth.js'
 
 const router = useRouter()
@@ -91,6 +113,7 @@ onMounted(async () => {
     // Debug information
     console.log('LoginDisplay mounted, checking environment...')
     console.log('Cognito configured:', cognitoAuth.isConfigured())
+    console.log('Amplify configured:', amplifyAuth.isConfigured())
 
     // 檢查 URL 中是否有 OAuth 錯誤
     const urlParams = new URLSearchParams(window.location.search)
@@ -119,15 +142,15 @@ onMounted(async () => {
       return
     }
 
-    // 檢查是否有 Cognito 回調
-    const loginResult = await cognitoAuth.handleLoginCallback()
-    if (loginResult) {
-      if (loginResult.success) {
-        console.log(loginResult.message)
-        alert(loginResult.message)
+    // 先檢查是否有 Amplify 回調
+    const amplifyResult = await amplifyAuth.handleLoginCallback()
+    if (amplifyResult) {
+      if (amplifyResult.success) {
+        console.log(amplifyResult.message)
+        alert(amplifyResult.message)
 
         // 更新用戶狀態
-        authStore.setUser(loginResult.user)
+        authStore.setUser(amplifyResult.user)
 
         // 登入成功後返回之前的頁面或首頁
         const redirectPath = sessionStorage.getItem('preLoginPath') || '/'
@@ -135,8 +158,30 @@ onMounted(async () => {
         router.push(redirectPath)
       } else {
         // 登入處理失敗
-        console.error('Cognito 登入處理失敗:', loginResult.error)
-        alert(loginResult.message || '登入處理失敗，請重試')
+        console.error('Amplify 登入處理失敗:', amplifyResult.error)
+        alert(amplifyResult.message || 'Amplify 登入處理失敗，請重試')
+      }
+      return
+    }
+
+    // 如果沒有 Amplify 回調，檢查是否有 Cognito 回調
+    const cognitoResult = await cognitoAuth.handleLoginCallback()
+    if (cognitoResult) {
+      if (cognitoResult.success) {
+        console.log(cognitoResult.message)
+        alert(cognitoResult.message)
+
+        // 更新用戶狀態
+        authStore.setUser(cognitoResult.user)
+
+        // 登入成功後返回之前的頁面或首頁
+        const redirectPath = sessionStorage.getItem('preLoginPath') || '/'
+        sessionStorage.removeItem('preLoginPath')
+        router.push(redirectPath)
+      } else {
+        // 登入處理失敗
+        console.error('Cognito 登入處理失敗:', cognitoResult.error)
+        alert(cognitoResult.message || 'Cognito 登入處理失敗，請重試')
       }
     }
   } catch (err) {
@@ -182,6 +227,51 @@ const loginWithCognito = async () => {
       errorMessage += `OAuth scope 錯誤\n\n請檢查：\n1. Cognito 用戶池應用程式客戶端的 OAuth 設定\n2. 確認已啟用 'openid' scope\n3. 確認應用程式客戶端類型設定正確\n4. 確認已啟用 OAuth 流程`
     } else if (error.message && error.message.includes('未正確設定')) {
       errorMessage += `環境變數未設定\n\n請確保以下環境變數已正確設定：\n- VITE_COGNITO_DOMAIN: 您的 Cognito 網域\n- VITE_COGNITO_CLIENT_ID: 應用程式客戶端 ID`
+    } else {
+      errorMessage += `建議檢查：\n1. 環境變數設定是否正確\n2. Cognito 用戶池設定\n3. 網路連線\n4. OAuth 設定\n5. 用戶池應用程式客戶端配置`
+    }
+
+    alert(errorMessage)
+  }
+}
+
+// 使用 Amplify 登入
+const loginWithAmplify = async () => {
+  try {
+    if (!amplifyAuth.isConfigured()) {
+      alert(
+        'Amplify 未正確設定，請檢查環境變數\n\n需要設定：\n- VITE_COGNITO_USER_POOL_ID\n- VITE_COGNITO_CLIENT_ID\n- VITE_COGNITO_DOMAIN\n- VITE_AWS_REGION (可選，預設為 us-east-1)',
+      )
+      return
+    }
+
+    // 檢查並顯示當前設定用於調試
+    console.log('Amplify 設定:', {
+      userPoolId: amplifyAuth.userPoolId,
+      clientId: amplifyAuth.clientId,
+      domain: amplifyAuth.domain,
+      redirectUri: amplifyAuth.redirectUri,
+      awsRegion: amplifyAuth.awsRegion,
+    })
+
+    console.log('重定向至 Amplify 登入頁面')
+
+    // 保存重定向前的頁面，用於登入成功後返回
+    sessionStorage.setItem('preLoginPath', window.location.pathname)
+
+    await amplifyAuth.signInWithHostedUI()
+  } catch (error) {
+    console.error('Amplify 登入錯誤:', error)
+
+    // 根據不同錯誤提供具體的解決方案
+    let errorMessage = `登入失敗：${error.message}\n\n`
+
+    if (error.message && error.message.includes('redirect_mismatch')) {
+      errorMessage += `重定向 URL 不匹配\n\n請檢查：\n1. AWS Cognito 用戶池中的應用程式客戶端設定\n2. 允許的回調 URL 是否包含：${window.location.origin}/login\n3. 允許的登出 URL 是否包含：${window.location.origin}/login`
+    } else if (error.message && error.message.includes('invalid_scope')) {
+      errorMessage += `OAuth scope 錯誤\n\n請檢查：\n1. Cognito 用戶池應用程式客戶端的 OAuth 設定\n2. 確認已啟用 'openid', 'email', 'profile' scope\n3. 確認應用程式客戶端類型設定正確\n4. 確認已啟用 OAuth 流程`
+    } else if (error.message && error.message.includes('未正確設定')) {
+      errorMessage += `環境變數未設定\n\n請確保以下環境變數已正確設定：\n- VITE_COGNITO_USER_POOL_ID: 您的 Cognito 用戶池 ID\n- VITE_COGNITO_CLIENT_ID: 應用程式客戶端 ID\n- VITE_COGNITO_DOMAIN: 您的 Cognito 網域`
     } else {
       errorMessage += `建議檢查：\n1. 環境變數設定是否正確\n2. Cognito 用戶池設定\n3. 網路連線\n4. OAuth 設定\n5. 用戶池應用程式客戶端配置`
     }
