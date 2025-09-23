@@ -8,6 +8,7 @@ import LoginView from '../views/LoginView.vue'
 import PreLoginView from '../views/PreLoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import ForgotPasswordView from '../views/ForgotPasswordView.vue'
+import CallbackHandler from '../views/CallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,11 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
+    },
+    {
+      path: '/callback',
+      name: 'callback',
+      component: CallbackHandler,
     },
     {
       path: '/menu',
