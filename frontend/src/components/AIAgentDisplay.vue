@@ -802,7 +802,7 @@ const scrollToBottom = async () => {
 }
 
 .ai-message .message-content {
-  background: #e8f6f9;
+  background: #fdfdfd;
   border: 1px solid #e9ecef;
   border-radius: 20px 20px 20px 5px;
   padding: 20px;
