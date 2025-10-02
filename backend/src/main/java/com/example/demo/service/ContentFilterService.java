@@ -48,7 +48,7 @@ public class ContentFilterService {
         String lowerInput = cleanedInput.toLowerCase();
         for (String forbiddenWord : forbiddenWords) {
             if (lowerInput.contains(forbiddenWord.toLowerCase())) {
-                return new ContentFilterResult(false, "輸入包含不當內容", cleanedInput);
+                return new ContentFilterResult(false, "輸入包含禁用詞彙", cleanedInput);
             }
         }
         
@@ -60,8 +60,8 @@ public class ContentFilterService {
         }
         
         // 移除 URL 和 Email
-        cleanedInput = urlPattern.matcher(cleanedInput).replaceAll("[已移除連結]");
-        cleanedInput = emailPattern.matcher(cleanedInput).replaceAll("[已移除郵箱]");
+        cleanedInput = urlPattern.matcher(cleanedInput).replaceAll("[已移除超連結]");
+        cleanedInput = emailPattern.matcher(cleanedInput).replaceAll("[已移除電子信箱]");
         
         // 檢查是否與飲品相關
         if (!isDrinkRelated(cleanedInput)) {

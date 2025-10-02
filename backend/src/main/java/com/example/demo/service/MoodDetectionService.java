@@ -3,6 +3,7 @@ package com.example.demo.service;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 public class MoodDetectionService {
@@ -11,6 +12,22 @@ public class MoodDetectionService {
     
     public MoodDetectionService() {
         // Constructor body can be empty now
+    }
+
+    private String getMoodDescription(String mood) {
+        switch (mood) {
+            case "happy": return "開心愉快";
+            case "relaxed": return "放鬆平靜";
+            case "tired": return "疲憊想休息";
+            case "energetic": return "充滿活力";
+            case "stressed": return "有壓力焦慮";
+            case "sad": return "傷心沮喪";
+            case "romantic": return "浪漫溫馨";
+            case "focused": return "專注工作";
+            case "refreshed": return "需要清爽";
+            case "cozy": return "溫暖舒適";
+            default: return "中性心情";
+        }
     }
     
     private Map<String, Set<String>> initializeMoodKeywords() {
@@ -42,7 +59,7 @@ public class MoodDetectionService {
         
         // 壓力/焦慮
         keywords.put("stressed", new HashSet<>(Arrays.asList(
-            "壓力", "焦慮", "緊張", "煩躁", "不安", "擁心", "緊迫", "煩惱",
+            "壓力", "焦慮", "緊張", "煩躁", "不安", "憂心", "緊迫", "煩惱",
             "stressed", "anxious", "worried", "nervous", "tense", "overwhelmed"
         )));
         
@@ -54,14 +71,25 @@ public class MoodDetectionService {
         
         // 浪漫/溫馨
         keywords.put("romantic", new HashSet<>(Arrays.asList(
-            "浪漫", "溫馨", "甜蜜", "溫暖", "約會", "情人", "戀愛", "愛情",
-            "romantic", "cozy", "warm", "sweet", "intimate", "loving"
+            "浪漫", "甜蜜", "溫馨", "約會", "情人", "戀愛", "愛情",
+            "romantic", "warm", "sweet", "intimate", "loving"
+            // "cozy" 已移除，避免與 cozy mood 混淆
         )));
         
         // 專注/工作
         keywords.put("focused", new HashSet<>(Arrays.asList(
             "專注", "工作", "學習", "讀書", "思考", "集中", "努力", "認真",
             "focused", "concentrated", "studying", "working", "productive"
+        )));
+        
+        // 清爽/提神
+        keywords.put("refreshed", new HashSet<>(Arrays.asList(
+            "清爽", "提神", "refresh", "refreshed", "醒腦", "涼快", "cool", "fresh"
+        )));
+        
+        // 溫暖/舒適
+        keywords.put("cozy", new HashSet<>(Arrays.asList(
+            "溫暖", "舒適", "cozy", "暖和", "暖", "comfortable", "snug"
         )));
         
         return keywords;
@@ -75,15 +103,21 @@ public class MoodDetectionService {
         String lowerInput = input.toLowerCase();
         Map<String, Integer> moodScores = new HashMap<>();
         
-        // 計算每種心情的匹配分數
+        // 以空白、標點分割詞語
+        String[] words = lowerInput.split("[\\s\\p{Punct}]+");
+        Set<String> wordSet = new HashSet<>(Arrays.asList(words));
+        
+        // 計算每種心情的匹配分數（完整詞語比對）
         for (Map.Entry<String, Set<String>> entry : moodKeywords.entrySet()) {
             String mood = entry.getKey();
             Set<String> keywords = entry.getValue();
             
             int score = 0;
             for (String keyword : keywords) {
-                if (lowerInput.contains(keyword.toLowerCase())) {
-                    score += keyword.length(); // 較長的關鍵字有更高的權重
+                String lowerKeyword = keyword.toLowerCase();
+                // 完整詞語比對
+                if (wordSet.contains(lowerKeyword)) {
+                    score += lowerKeyword.length(); // 較長的關鍵字有更高的權重
                 }
             }
             
@@ -130,22 +164,6 @@ public class MoodDetectionService {
         
         // 默認中性心情
         return new MoodDetectionResult("neutral", "中性心情", 0.3);
-    }
-    
-    private String getMoodDescription(String mood) {
-        switch (mood) {
-            case "happy": return "開心愉快";
-            case "relaxed": return "放鬆平靜";
-            case "tired": return "疲憊想休息";
-            case "energetic": return "充滿活力";
-            case "stressed": return "有壓力焦慮";
-            case "sad": return "傷心沮喪";
-            case "romantic": return "浪漫溫馨";
-            case "focused": return "專注工作";
-            case "refreshed": return "需要清爽";
-            case "cozy": return "溫暖舒適";
-            default: return "中性心情";
-        }
     }
     
     public static class MoodDetectionResult {
