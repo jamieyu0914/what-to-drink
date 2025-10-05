@@ -14,4 +14,5 @@ public interface UserPreferenceRepository extends JpaRepository<UserPreference, 
     List<UserPreference> findByUserAndPreferenceType(User user, String preferenceType);
     Optional<UserPreference> findByUserAndPreferenceTypeAndPreferenceValue(User user, String preferenceType, String preferenceValue);
     void deleteByUser(User user);
+    boolean existsByUser_Username(String username);
 }

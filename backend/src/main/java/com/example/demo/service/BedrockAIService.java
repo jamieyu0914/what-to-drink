@@ -24,7 +24,7 @@ import java.util.regex.Matcher;
 @Service
 public class BedrockAIService {
     
-    // 推薦結果類，包含推薦內容和服務類型
+    // 推薦結果類別，包含推薦內容和服務類型
     public static class RecommendationResult {
         private String recommendation;
         private String serviceType;

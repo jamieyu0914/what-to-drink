@@ -19,8 +19,8 @@ com/example/demo/repository/FavoriteDrinkRepository.class
 com/example/demo/service/BedrockAIService$ParsedAIResponse$DrinkRecommendation.class
 com/example/demo/service/MoodDetectionService$MoodDetectionResult.class
 com/example/demo/dto/FavoriteDrinkRequest.class
-com/example/demo/repository/UserRepository.class
 com/example/demo/BackendApplication.class
+com/example/demo/repository/UserRepository.class
 com/example/demo/service/MoodDetectionService.class
 com/example/demo/controller/MenuController.class
 com/example/demo/service/ContentFilterService.class

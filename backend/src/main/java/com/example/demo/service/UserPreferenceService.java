@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
+
 @Service
 @Transactional
 public class UserPreferenceService {
@@ -56,6 +60,27 @@ public class UserPreferenceService {
                 userPreferenceRepository.save(pref);
             }
         }
+    }
+
+    public String buildUserPreferencesString(User user) {
+        List<UserPreference> preferences = userPreferenceRepository.findByUser(user);
+        if (preferences.isEmpty()) {
+            return "";
+        }
+        
+        Map<String, List<String>> groupedPrefs = preferences.stream()
+            .collect(Collectors.groupingBy(
+                UserPreference::getPreferenceType,
+                Collectors.mapping(UserPreference::getPreferenceValue, Collectors.toList())
+            ));
+        
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, List<String>> entry : groupedPrefs.entrySet()) {
+            sb.append(entry.getKey()).append(": ")
+              .append(String.join(", ", entry.getValue())).append("; ");
+        }
+        
+        return sb.toString();
     }
     
     public List<UserPreference> getUserPreferences(String username) {

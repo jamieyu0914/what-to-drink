@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
+
 @Service
 @Transactional
 public class FavoriteDrinkService {
@@ -68,6 +72,16 @@ public class FavoriteDrinkService {
         
         return favoriteDrinkRepository.findByUserOrderByCreatedAtDesc(userOpt.get());
     }
+
+    public List<String> getFavoriteDrinkNamesByUser(String username) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("找不到使用者: " + username));
+        
+        List<FavoriteDrink> favoriteDrinks = favoriteDrinkRepository.findByUserOrderByCreatedAtDesc(user);
+        return favoriteDrinks.stream()
+            .map(FavoriteDrink::getDrinkName)
+            .collect(Collectors.toList());
+    }
     
     public List<FavoriteDrink> getUserFavoriteDrinksByCategory(String username, String category) {
         Optional<User> userOpt = userRepository.findByUsername(username);
@@ -113,5 +127,12 @@ public class FavoriteDrinkService {
         favoriteDrink.setNotes(notes);
         
         return favoriteDrinkRepository.save(favoriteDrink);
+    }
+
+    public boolean isDrinkFavoritedByUser(String username, String drinkName) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) return false;
+        
+        return favoriteDrinkRepository.existsByUserAndDrinkName(user, drinkName);
     }
 }

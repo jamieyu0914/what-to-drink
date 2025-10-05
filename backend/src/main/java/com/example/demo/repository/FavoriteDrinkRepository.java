@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface FavoriteDrinkRepository extends JpaRepository<FavoriteDrink, Long> {
+    List<FavoriteDrink> findByUser(User user);
     List<FavoriteDrink> findByUserOrderByCreatedAtDesc(User user);
     List<FavoriteDrink> findByUserAndDrinkCategoryOrderByCreatedAtDesc(User user, String drinkCategory);
     Optional<FavoriteDrink> findByUserAndDrinkName(User user, String drinkName);

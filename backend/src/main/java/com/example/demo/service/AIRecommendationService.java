@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.RecommendationResponse;
+import com.example.demo.dto.FavoriteDrinkRequest;
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
 import com.example.demo.util.MenuDataUtil;
@@ -12,10 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import jakarta.annotation.PostConstruct;
+
 @Service
 @Transactional
 public class AIRecommendationService {
-    
+
+    // 修正：確保所有依賴都有適當的注入
     @Autowired
     private ContentFilterService contentFilterService;
     
@@ -24,6 +28,12 @@ public class AIRecommendationService {
     
     @Autowired
     private BedrockAIService bedrockAIService;
+
+    @Autowired
+    private FavoriteDrinkService favoriteDrinkService;
+
+    @Autowired
+    private UserPreferenceService userPreferenceService;
     
     @Autowired
     private UserRepository userRepository;
@@ -35,6 +45,43 @@ public class AIRecommendationService {
     private RecommendationHistoryRepository recommendationHistoryRepository;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostConstruct
+    public void ensureTestUserExists() {
+        String testUsername = "TestUser";
+        Optional<User> testUserOpt = userRepository.findByUsername(testUsername);
+        User testUser;
+        if (!testUserOpt.isPresent()) {
+            testUser = new User();
+            testUser.setUsername(testUsername);
+            // testUser.setPassword("testpassword"); // 可依需求設定密碼
+            testUser.setEmail("testuser@example.com"); // 可依需求設定 email
+            userRepository.save(testUser);
+            System.out.println("已建立 TestUser 帳號");
+        } else {
+            testUser = testUserOpt.get();
+            System.out.println("TestUser 已存在");
+        }
+
+        // 確保 TestUser 有偏好資料
+        if (!userPreferenceRepository.existsByUser_Username(testUser.getUsername())) {
+            UserPreference pref = new UserPreference();
+            pref.setUser(testUser);
+            pref.setPreferenceValue("偏好：少冰、微糖、喜歡奶茶");
+            userPreferenceRepository.save(pref);
+            System.out.println("已建立 TestUser 偏好");
+        }
+        // 確保 TestUser 有收藏飲品
+        List<String> defaultFavorites = Arrays.asList("珍珠奶茶", "抹茶拿鐵");
+        for (String drinkName : defaultFavorites) {
+            if (!favoriteDrinkService.isDrinkFavoritedByUser(testUser.getUsername(), drinkName)) {
+                // 修正：使用 FavoriteDrinkRequest 物件
+                FavoriteDrinkRequest request = new FavoriteDrinkRequest(drinkName, "奶茶");
+                favoriteDrinkService.addFavoriteDrink(testUser.getUsername(), request);
+                System.out.println("已收藏飲品：" + drinkName);
+            }
+        }
+    }
     
     public RecommendationResponse generateRecommendation(String userInput, String username) {
         try {
@@ -55,17 +102,23 @@ public class AIRecommendationService {
             // 3. 獲取使用者偏好
             User user = null;
             String userPreferences = "";
+            List<String> favoriteDrinks = new ArrayList<>();
+            System.out.println("Request Username for Preferences: " + username);
             if (username != null && !username.isEmpty()) {
                 user = userRepository.findByUsername(username).orElse(null);
                 if (user != null) {
-                    userPreferences = buildUserPreferencesString(user);
+                    // 使用 UserPreferenceService 取得偏好字串
+                    userPreferences = userPreferenceService.buildUserPreferencesString(user);
+                    // 修正：使用正確的方法名稱
+                    favoriteDrinks = favoriteDrinkService.getFavoriteDrinkNamesByUser(user.getUsername());
+                    System.out.println("User Preferences: " + userPreferences);
+                    System.out.println("Favorite Drinks: " + favoriteDrinks);
                 }
             }
             
             // 4. 生成推薦 prompt
             String prompt = bedrockAIService.buildRecommendationPrompt(
-                cleanedInput, moodResult.getDescription(), userPreferences);
-            
+                cleanedInput, moodResult.getDescription(), userPreferences);            
             // 5. Bedrock Nova 推薦清單 - 使用新的方法獲取服務類型信息
             BedrockAIService.RecommendationResult aiResult = bedrockAIService.generateRecommendation(prompt);
             String aiResponse = aiResult.getRecommendation();
@@ -125,27 +178,6 @@ public class AIRecommendationService {
         } catch (Exception e) {
             return RecommendationResponse.error("推薦系統發生錯誤：" + e.getMessage());
         }
-    }
-    
-    private String buildUserPreferencesString(User user) {
-        List<UserPreference> preferences = userPreferenceRepository.findByUser(user);
-        if (preferences.isEmpty()) {
-            return "";
-        }
-        
-        Map<String, List<String>> groupedPrefs = preferences.stream()
-            .collect(Collectors.groupingBy(
-                UserPreference::getPreferenceType,
-                Collectors.mapping(UserPreference::getPreferenceValue, Collectors.toList())
-            ));
-        
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, List<String>> entry : groupedPrefs.entrySet()) {
-            sb.append(entry.getKey()).append(": ")
-              .append(String.join(", ", entry.getValue())).append("; ");
-        }
-        
-        return sb.toString();
     }
     
     private List<RecommendationResponse.DrinkRecommendation> matchMenuItems(String aiResponse, String mood) {

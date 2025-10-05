@@ -37,6 +37,8 @@ public class AIRecommendationController {
                 request.getUserInput(), request.getUsername());
             
             // 分析並更新使用者偏好（如果有使用者名稱）
+            System.out.println("Request Username: " + request.getUsername());
+            System.out.println("Response Recommendations: " + response.getRecommendations());
             if (request.getUsername() != null && !request.getUsername().isEmpty() && 
                 response.getRecommendations() != null) {
                 
